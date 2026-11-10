@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#15324a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Cockpit Clinique" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Cockpit Clinique</title>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">Cockpit clinique</div>
+      <h1 id="pageTitle">Patients actifs</h1>
+    </div>
+    <div class="top-actions">
+      <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Retour">←</button>
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="Sauvegarde et réglages">⋯</button>
+    </div>
+  </header>
+
+  <main id="app" class="app-shell" aria-live="polite"></main>
+
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <button class="nav-btn active" data-route="patients" type="button">Actifs</button>
+    <button class="nav-btn" data-route="archives" type="button">Archives</button>
+    <button class="nav-btn" id="newPatientBtn" type="button">+ Patient</button>
+  </nav>
+
+  <dialog id="modal" class="modal">
+    <div id="modalContent"></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
