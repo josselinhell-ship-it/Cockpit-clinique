@@ -35,7 +35,7 @@ const KEY = 'cockpit_clinique_v1_data';
     await page.locator('#sessionForm button[type=submit]').click();
     await page.locator('#quickPivotBtn').click();
     await page.locator('[name=result]').fill('9 cm');
-    await page.locator('#pivotForm button[type=submit]').click();
+    await page.locator('[name=chosenStatus]').selectOption('C');await page.locator('#pivotForm button[type=submit]').click();
     const first = (await db()).cases[0];
     assert.equal(first.qualityStatus.mobility,'C'); assert.equal(first.statusHistory.length,3);
     assert.equal(first.sessions[0].note,'Séance test'); assert.equal(first.pivots[0].result,'9 cm');
@@ -61,7 +61,7 @@ const KEY = 'cockpit_clinique_v1_data';
     // Old data: active and archived patients, full histories and unknown fields.
     const legacy = {version:1,patients:[{id:'old',name:'Ancien',lesion:'Médiale',context:'Diagnostic',objective:'Objectif',targetFunction:'Marche',constraints:'Notes',archived:false,createdAt:'2025-01-01',updatedAt:'2025-01-02',status:{mobility:'A'},statusHistory:[{id:'h',qualityId:'mobility',from:'D',to:'A',date:'2025-01-02'}],sessions:first.sessions,pivots:first.pivots,custom:'préserver'}, {id:'old-archive',name:'Archive',archived:true,status:{},sessions:[],pivots:[],statusHistory:[]}]};
     await page.evaluate(([key,value])=>localStorage.setItem(key,JSON.stringify(value)),[KEY,legacy]); await page.reload();
-    saved = await db(); assert.equal(saved.version,2); assert.equal(saved.cases.length,2);
+    saved = await db(); assert.equal(saved.version,3); assert.equal(saved.cases.length,2);
     assert.equal(saved.cases[0].subtype,'Médiale'); assert.equal(saved.cases[0].qualityStatus.mobility,'A');
     for(const field of ['context','objective','targetFunction','constraints','sessions','pivots','statusHistory','custom']) assert.deepEqual(saved.cases[0][field],legacy.patients[0][field]);
     assert.deepEqual(saved.legacySnapshot,legacy); assert.equal(saved.cases[1].status,'archived');

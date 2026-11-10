@@ -295,7 +295,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   'use strict';
 
   const STORAGE_KEY = 'cockpit_clinique_v1_data';
-  const CURRENT_VERSION = 2;
+  const CURRENT_VERSION = 3;
 
   const QUALITIES = [
     {
@@ -375,12 +375,39 @@ th, td { padding: 15px 14px; font-size: 14px; }
       fields:[field('task','PSFS / tâche cible','text'),field('goal','Objectif fonctionnel principal','text'),field('level','Niveau actuel','text'),field('evolution','Évolution dans le temps','text'),field('distance','Distance running (km)'),field('duration','Durée running (min)'),field('speed','Vitesse (km/h) ou allure (min/km), préciser','text'),field('weeklyVolume','Volume hebdomadaire (préciser unité)','text'),field('reaction','Réaction symptomatique à 24 h','text'),field('exposure','Exposition / tâche spécifique','text')]}
   ];
 
+  KNEE_QUALITIES.find(q => q.id === 'function').testFields = Object.fromEntries(KNEE_QUALITIES.find(q => q.id === 'function').tests.map(test => [test,test === 'Running' || test === 'Reprise course (optionnel)' ? ['distance','duration','speed','weeklyVolume','reaction','exposure'] : ['task','goal','level','evolution','reaction','exposure']]));
+  KNEE_QUALITIES.find(q => q.id === 'ssc').testFields = {'CMJ':[],'Drop Jump':['boxHeight'],'Single-Leg Drop Jump (optionnel avancé)':['singleLegBoxHeight']};
+  // Profiles guide visibility only. They never assign clinical statuses.
+  const KNEE_PROFILES = {
+    SFP:{watch:'flexion chargée · quadriceps · abducteurs · course · réaction 24 h',qualities:['strength','mobility','sensorimotor','function'],tests:{strength:['Quadriceps','Fessiers latéraux / abducteurs'],mobility:['Extension / flexion du genou'],sensorimotor:['Y-Balance Test'],function:['PSFS / tâche cible','Running','Squat'],capacity:[],ssc:[]}},
+    'ITBS / TFL':{watch:'course · volume / fréquence · abducteurs · répétition · charge',qualities:['strength','function','capacity'],tests:{strength:['Fessiers latéraux / abducteurs'],function:['Running','PSFS / tâche cible'],capacity:['Single-Leg Bridge Endurance Test'],mobility:[],sensorimotor:[],ssc:[]}},
+    'Ménisque':{watch:'épanchement · ROM · quadriceps · charge / flexion · pivots',qualities:['mobility','strength','sensorimotor','function'],tests:{strength:['Quadriceps'],function:['PSFS / tâche cible','Pivots'],capacity:[],ssc:[]}},
+    'Traumatique simple':{watch:'douleur / gonflement · ROM · force · contrôle · reprise de charge',qualities:['mobility','strength','sensorimotor','function'],tests:{capacity:[],ssc:[]}},
+    'Post-op hors LCA':{watch:'restrictions / protocole · ROM · quadriceps · mise en charge · fonction',qualities:['mobility','strength','function'],tests:{strength:['Quadriceps'],function:['PSFS / tâche cible','Autre tâche spécifique'],capacity:[],sensorimotor:[],ssc:[]}},
+    'Autre':{watch:'précautions spécifiques · objectif · notes · sélection libre'}
+  };
+  KNEE_QUALITIES.forEach(q => {
+    if (q.aggregate) q.testTargets = Object.fromEntries(q.tests.map((test,index) => [test,[q.components[index].id]]));
+    if (q.id === 'ssc') {
+      q.components.forEach(c => c.kind = 'metric');
+      q.testTargets = Object.fromEntries(q.tests.map((test,index) => [test,q.components.filter(c => c.id.startsWith(['cmj','dj','sldj'][index])).map(c => c.id)]));
+    } else (q.components || []).forEach(c => c.kind = 'subcomponent');
+  });
+
   // Add future cockpits here; the common engine reads only the case template.
   const TEMPLATES = {
     CHEVILLE: { id: 'CHEVILLE', name: 'Cheville / pied', qualities: QUALITIES,
       subtypes: LESIONS, memos: LESION_MEMO, sessionOptions: SESSION_OPTIONS,
+      profiles:{
+        'Latérale':{watch:'DF · fibulaires / éversion · YBT',qualities:['mobility','strength','sensorimotor','function'],tests:{mobility:['WBLT'],strength:['Dynamométrie VALD'],sensorimotor:['Y-Balance Test'],capacity:[],ssc:[]}},
+        'Médiale':{watch:'DF · inverseurs / tibial postérieur · YBT',qualities:['mobility','strength','sensorimotor','function'],tests:{mobility:['WBLT'],strength:['Dynamométrie VALD'],sensorimotor:['Y-Balance Test'],capacity:[],ssc:[]}},
+        'Syndesmose':{watch:'stabilité · tolérance · DF progressive',qualities:['mobility','function'],tests:{mobility:['ROM ciblée'],strength:[],capacity:[],sensorimotor:[],ssc:[]}},
+        'Médio-pied / Chopart':{watch:'charge · mobilité médio / avant-pied · lésions associées',qualities:['mobility','function'],tests:{mobility:['ROM ciblée'],strength:[],capacity:[],sensorimotor:[],ssc:[]}},
+        'Postérieure':{watch:'flexion plantaire / compression · FHL · os',qualities:['mobility','strength','function'],tests:{mobility:['ROM ciblée'],capacity:[],sensorimotor:[],ssc:[]}},
+        'ICC / récidivante':{watch:'profil Hertel · priorités individualisées'},
+        'Mixte / autre':{watch:'profil lésionnel · tâche cible'}},
       guidance: '1–2 A idéalement ; D = pas utile ou pas testable à ce stade.' },
-    GENOU: {id:'GENOU',name:'Genou',qualities:KNEE_QUALITIES,subtypeLabel:'Profil clinique',constraintsLabel:'Contraintes / notes / protocole ou restrictions spécifiques',pivotExamples:{result:'Ex. extension −5° / flexion 120°',question:'Question clinique liée à la progression',decision:'Décision / transition clinique'},
+    GENOU: {profiles:KNEE_PROFILES,id:'GENOU',name:'Genou',qualities:KNEE_QUALITIES,subtypeLabel:'Profil clinique',constraintsLabel:'Contraintes / notes / protocole ou restrictions spécifiques',pivotExamples:{result:'Ex. extension −5° / flexion 120°',question:'Question clinique liée à la progression',decision:'Décision / transition clinique'},
       subtypes:['SFP','ITBS / TFL','Ménisque','Traumatique simple','Post-op hors LCA','Autre'],
       memos:{
         'SFP':'Irritabilité / douleur fémoro-patellaire · tolérance à la flexion chargée · force quadriceps + abducteurs · contrôle en tâche unipodale · exposition escaliers / squat / course · réaction symptomatique à 24 h.',
@@ -421,7 +448,26 @@ th, td { padding: 15px 14px; font-size: 14px; }
   // Pure migration: keep a full legacy snapshot and move all clinical fields to cases.
   function migrateDB(input) {
     if (!input || !Array.isArray(input.patients)) throw new Error('Patients invalides');
-    if (input.version === 2) { validateDB(input); return input; }
+    if (input.version === 3) { validateDB(input); return input; }
+    if (input.version === 2) {
+      validateDB(input);
+      const result = JSON.parse(JSON.stringify(input));
+      result.version = 3;
+      result.cases.forEach(c => {
+        if (c.measurements) {
+          c.legacyMeasurements = c.measurements; // archival copy, never read by the clinical engine
+          c.measurements.forEach(m => {
+            const q = qualitiesFor(c).find(q => q.id === m.qualityId);
+            let id = m.id, suffix = 0;
+            while (c.pivots.some(p => p.id === id)) id = `migrated_${m.id}_${++suffix}`;
+            c.pivots.push({...m,id,originalMeasurementId:m.id,kind:'measurement',test:q?.pivot || 'Mesure historique',result:m.summary || '',decision:m.note || ''});
+          });
+          delete c.measurements;
+          c.pivots.sort((a,b) => String(a.date || '').localeCompare(String(b.date || '')));
+        }
+      });
+      validateDB(result); return result;
+    }
     if (input.version != null && input.version !== 1) throw new Error('Version non prise en charge');
     const result = { ...input, version: 2, patients: [], cases: [], legacySnapshot: input };
     input.patients.forEach((old, index) => {
@@ -437,7 +483,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
         createdAt: old.createdAt || nowISO(), updatedAt: old.updatedAt || nowISO() });
     });
     validateDB(result);
-    return result;
+    return migrateDB(result);
   }
 
   function validateDB(data) {
@@ -458,7 +504,15 @@ th, td { padding: 15px 14px; font-size: 14px; }
           c.sessions.some(session => ['symptoms','exposure','tolerance','adherence'].some(key => session[key] != null && !Array.isArray(session[key])))) throw new Error('Données longitudinales invalides');
       if (c.measurements != null && (!Array.isArray(c.measurements) || c.measurements.some(m =>
           !m || typeof m.id !== 'string' || typeof m.qualityId !== 'string' || !m.values || typeof m.values !== 'object' ||
-          !m.components || typeof m.components !== 'object' || Object.values(m.components).some(part => !part || !['A','B','C','D'].includes(part.status))))) throw new Error('Mesures invalides');
+          !m.components || typeof m.components !== 'object' || Object.values(m.components).some(part => !part || (part.status != null && !['A','B','C','D'].includes(part.status)))))) throw new Error('Mesures invalides');
+      const recordIds = new Set();
+      c.pivots.forEach(record => {
+        if (typeof record.id !== 'string' || recordIds.has(record.id)) throw new Error('Identifiant pivot invalide');
+        recordIds.add(record.id);
+        if (record.chosenStatus != null && !['A','B','C','D'].includes(record.chosenStatus)) throw new Error('Décision invalide');
+        if (record.values != null && (typeof record.values !== 'object' || Array.isArray(record.values))) throw new Error('Valeurs invalides');
+        if (record.components != null && (typeof record.components !== 'object' || Array.isArray(record.components) || Object.values(record.components).some(part => !part || typeof part !== 'object' || (part.status != null && !['A','B','C','D'].includes(part.status))))) throw new Error('Composantes invalides');
+      });
       if (c.qualityOverrides != null && (typeof c.qualityOverrides !== 'object' || Array.isArray(c.qualityOverrides))) throw new Error('Statuts manuels invalides');
       caseIds.add(c.id);
     });
@@ -600,29 +654,22 @@ th, td { padding: 15px 14px; font-size: 14px; }
   }
 
   function renderOverview(holder, p) {
-    const counts = {A:0,B:0,C:0,D:0}; qualitiesFor(p).forEach(q => counts[p.qualityStatus[q.id] || 'D']++);
-    const lastSession = p.sessions[p.sessions.length-1];
-    const lastPivot = p.pivots[p.pivots.length-1];
-    const lastFunction = [...(p.measurements || [])].reverse().find(m => m.qualityId === 'function');
-    holder.innerHTML = `
-      <div class="stack">
-        <div class="kpi-row"><div class="kpi"><strong>${counts.A}</strong><span>qualités A</span></div><div class="kpi"><strong>${p.sessions.length}</strong><span>séances</span></div><div class="kpi"><strong>${p.pivots.length}</strong><span>tests pivots</span></div></div>
-        <div class="grid-2">
-          <section class="card"><div class="section-head"><div><h2>Identité clinique</h2><p>Le 20 % personnalisé</p></div></div>
-            <div class="stack small"><div><strong>Contexte / diagnostic :</strong><br>${esc(p.context || '—')}</div><div><strong>Fonction cible :</strong><br>${esc(p.targetFunction || '—')}</div><div><strong>Contraintes / notes :</strong><br>${esc(p.constraints || '—')}</div></div>
-          </section>
-          <section class="card"><div class="section-head"><div><h2>${esc(templateFor(p).subtypeLabel || 'Repère lésionnel')}</h2><p>${esc(p.subtype)}</p></div></div><div class="notice">${esc(templateFor(p).memos[p.subtype] || '')}</div></section>
-        </div>
-        <section class="card"><div class="section-head"><div><h2>Carte actuelle</h2><p>Dernier statut = statut courant</p></div><button id="goQualities" class="btn secondary" type="button">Ouvrir</button></div>
-          <div class="badges ${qualitiesFor(p).some(q => q.fields || q.components) ? 'quality-summary' : ''}">${qualitiesFor(p).map(q => `<div><span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${esc(q.name)} · ${p.qualityStatus[q.id]||'D'}</span>${limitingSummary(p,q)}</div>`).join('')}</div>
-        </section>
-        ${lastFunction ? `<section class="card"><h2>Dernière exposition fonctionnelle</h2><div>${fmtDate(lastFunction.date)} · ${esc(lastFunction.summary || lastFunction.values.task || lastFunction.values.exposure || 'Exposition enregistrée')}</div><div class="small">${esc([lastFunction.values.distance ? lastFunction.values.distance+' km' : '',lastFunction.values.duration ? lastFunction.values.duration+' min' : '',lastFunction.values.reaction].filter(Boolean).join(' · '))}</div></section>` : ''}
-        <div class="grid-2">
-          <section class="card"><div class="section-head"><div><h2>Dernière séance</h2><p>${lastSession ? 'S'+lastSession.n+' · '+fmtDate(lastSession.date) : 'Aucune'}</p></div></div>${lastSession ? sessionSummaryHTML(lastSession) : '<div class="empty">Pas encore de séance.</div>'}</section>
-          <section class="card"><div class="section-head"><div><h2>Dernier pivot</h2><p>${lastPivot ? fmtDate(lastPivot.date) : 'Aucun'}</p></div></div>${lastPivot ? pivotSummaryHTML(lastPivot, p) : '<div class="empty">Pas encore de test pivot.</div>'}</section>
-        </div>
-      </div>`;
-    document.getElementById('goQualities').addEventListener('click', () => { route.tab='qualities'; renderCase(); });
+    const profile = profileFor(p);
+    const lastFunction = [...p.pivots].reverse().find(m => m.qualityId === 'function');
+    const change = p.statusHistory.at(-1);
+    holder.innerHTML = `<div class="stack">
+      <section class="card"><div class="section-head"><h2>Profil : ${esc(p.subtype)}</h2></div>
+        ${profile.watch ? `<div class="small">À surveiller : ${esc(profile.watch)}</div>` : ''}
+        <details><summary class="btn secondary">Repères du profil</summary><div class="notice">${esc(templateFor(p).memos[p.subtype] || '')}</div></details>
+        <div><strong>Fonction cible :</strong> ${esc(p.targetFunction || '—')}</div>
+        ${p.context ? `<div class="small">Contexte / diagnostic : ${esc(p.context)}</div>` : ''}
+        ${p.constraints ? `<div class="small">Contraintes / notes : ${esc(p.constraints)}</div>` : ''}</section>
+      <section class="card"><div class="section-head"><h2>Carte clinique</h2><button id="goQualities" class="btn secondary">Ouvrir les qualités</button></div>
+        <div class="quality-summary">${qualitiesFor(p).map(q => `<div><span class="badge ${(p.qualityStatus[q.id] || 'D').toLowerCase()}">${esc(q.name)} — ${p.qualityStatus[q.id] || 'D'}</span>${limitingSummary(p,q)}${p.decisionUnresolved?.[q.id] ? '<div class="small">Décision supprimée — statut à réévaluer.</div>' : ''}</div>`).join('')}</div></section>
+      ${lastFunction ? `<section class="card"><h2>Dernière exposition fonctionnelle</h2><div>${fmtDate(lastFunction.date)} · ${esc(lastFunction.summary || lastFunction.values?.task || lastFunction.test || '')}</div><div class="small">${esc([lastFunction.values?.duration ? lastFunction.values.duration+' min' : '',lastFunction.values?.distance ? lastFunction.values.distance+' km' : '',lastFunction.values?.reaction,lastFunction.result].filter(Boolean).join(' · '))}</div></section>` : ''}
+      ${change ? `<div class="small">Dernier changement : ${esc(qualitiesFor(p).find(q => q.id === change.qualityId)?.name || change.qualityId)} · ${esc(change.from)} → ${esc(change.to)} · ${fmtDate(change.date)}</div>` : ''}
+    </div>`;
+    document.getElementById('goQualities').onclick = () => {route.tab='qualities';renderCase();};
   }
 
   function renderQualities(holder, p) {
@@ -632,6 +679,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
       const qid = btn.dataset.quality, next = btn.dataset.status, old = p.qualityStatus[qid] || 'D';
       const q = qualitiesFor(p).find(q => q.id === qid);
       if (q.aggregate) { p.qualityOverrides ||= {}; p.qualityOverrides[qid] = true; }
+      if (p.decisionUnresolved) delete p.decisionUnresolved[qid];
       if (old === next) { p.updatedAt = nowISO(); saveDB(); renderCase(); return; }
       p.qualityStatus[qid] = next;
       p.statusHistory.push({ id: uid('st'), qualityId: qid, from: old, to: next, date: nowISO() });
@@ -646,110 +694,101 @@ th, td { padding: 15px 14px; font-size: 14px; }
     return `<section class="card quality-card">
       <div class="quality-head"><div><h3>${esc(q.name)}</h3><div class="meta">Pivot : ${esc(q.pivot)}</div></div><span class="badge ${st.toLowerCase()}">${st} · ${statusLabel(st)}</span></div>
       <div class="status-grid">${['A','B','C','D'].map(s => `<button type="button" class="status-btn ${st===s?'active':''}" data-quality="${q.id}" data-status="${s}">${s}</button>`).join('')}</div>
-      ${q.fields || q.components ? measurementDetailHTML(p,q) : ''}
+      ${measurementDetailHTML(p,q)}
       <div class="quality-foot"><div><strong>Sortie :</strong> ${esc(q.exit)}</div><div><strong>Dernier pivot :</strong> ${latestPivot ? esc(latestPivot.test)+' · '+esc(latestPivot.result)+' · '+fmtDate(latestPivot.date) : '—'}</div><div><strong>Historique :</strong> ${hist.length ? hist.map(h=>`${h.from}→${h.to}`).join(' · ') : 'statut initial D'}</div></div>
     </section>`;
   }
 
-  function latestMeasurement(p, qualityId) {
-    return [...(p.measurements || [])].reverse().find(m => m.qualityId === qualityId);
+  function profileFor(p) { return templateFor(p).profiles?.[p.subtype] || {}; }
+  function recommendedTests(p,q) { return profileFor(p).tests?.[q.id] || (profileFor(p).tests?.[q.id] === undefined ? q.tests : []); }
+  function visibleTests(p,q) {
+    const used = p.pivots.filter(m => m.qualityId === q.id).flatMap(m => [m.test,...(q.components || []).filter(c => hasValues(m.components?.[c.id])).flatMap(c => Object.keys(q.testTargets || {}).filter(t => q.testTargets[t].includes(c.id)))]);
+    return [...new Set([...recommendedTests(p,q),...(p.profileExtras?.[q.id] || []),...used])].filter(test => q.tests.includes(test));
   }
-  function aggregateStatus(statuses) {
-    return ['A','B','C'].find(status => statuses.includes(status)) || 'D';
+  function rememberTest(p,q,test,persist=true) {
+    p.profileExtras ||= {}; p.profileExtras[q.id] ||= [];
+    if (!p.profileExtras[q.id].includes(test)) p.profileExtras[q.id].push(test);
+    if (persist) saveDB();
   }
-  function updateQualityStatus(p, qualityId, next) {
-    const old = p.qualityStatus[qualityId] || 'D';
-    if (old !== next) {
-      p.qualityStatus[qualityId] = next;
-      p.statusHistory.push({id:uid('st'),qualityId,from:old,to:next,date:nowISO()});
+  function hasValues(data) { return data && Object.entries(data).some(([key,value]) => key === 'status' ? ['A','B','C'].includes(value) : value !== '' && value != null); }
+  function latestMeasurement(p,id) { return [...p.pivots].reverse().find(m => m.qualityId === id); }
+  function componentState(p,q) {
+    const state = {};
+    p.pivots.filter(m => m.qualityId === q.id).forEach(m => {
+      (q.components || []).filter(c => c.kind !== 'metric').forEach(c => {
+        const data = m.components?.[c.id];
+        if (data && ['A','B','C','D'].includes(data.status)) state[c.id] = data;
+      });
+    });
+    return state;
+  }
+  function aggregateStatus(statuses) { return ['A','B','C'].find(st => statuses.includes(st)) || 'D'; }
+  function updateQualityStatus(p,id,next) {
+    const old = p.qualityStatus[id] || 'D';
+    if (old !== next) { p.qualityStatus[id] = next; p.statusHistory.push({id:uid('st'),qualityId:id,from:old,to:next,date:nowISO()}); }
+  }
+  function automaticStatus(p,q) { return aggregateStatus(Object.values(componentState(p,q)).map(part => part.status)); }
+  function refreshAutomaticStatus(p,q) {
+    p.decisionUnresolved ||= {};
+    if (q.aggregate) {
+      if (p.qualityOverrides?.[q.id]) return;
+      const statuses = Object.values(componentState(p,q)).map(part => part.status);
+      if (statuses.length) {updateQualityStatus(p,q.id,aggregateStatus(statuses));delete p.decisionUnresolved[q.id];}
+      else p.decisionUnresolved[q.id] = true;
+    } else {
+      const latest = [...p.pivots].reverse().find(m => m.qualityId === q.id && m.chosenStatus);
+      if (latest) {updateQualityStatus(p,q.id,latest.chosenStatus);delete p.decisionUnresolved[q.id];}
+      else p.decisionUnresolved[q.id] = true;
     }
   }
-  function automaticStatus(p,q) {
-    const latest = latestMeasurement(p,q.id);
-    return aggregateStatus((q.components || []).map(c => latest?.components?.[c.id]?.status || 'D'));
-  }
-  function refreshAutomaticStatus(p,q) {
-    if (q.aggregate && !p.qualityOverrides?.[q.id]) updateQualityStatus(p,q.id,automaticStatus(p,q));
-  }
   function limitingSummary(p,q) {
-    const latest = latestMeasurement(p,q.id);
-    if (!latest) return '';
-    const limiting = (q.components || []).filter(c => ['A','B'].includes(latest.components?.[c.id]?.status))
-      .map(c => `${c.shortName || c.name} ${latest.components[c.id].status}`).join(' · ');
-    return `<div class="small">${esc(limiting || (!q.aggregate ? latest.summary || '' : ''))}</div>`;
+    const state = componentState(p,q), latest = latestMeasurement(p,q.id);
+    const text = q.aggregate ? (q.components || []).filter(c => ['A','B'].includes(state[c.id]?.status)).map(c => `${c.shortName || c.name} ${state[c.id].status}`).join(' · ') : latest?.summary || (q.id === 'function' ? latest?.result : '') || ((p.qualityStatus[q.id] || 'D') === 'D' ? 'Pas encore interprété' : '');
+    return text ? `<div class="small">${esc(text)}</div>` : '';
   }
-  function measurementDetailHTML(p,q) {
-    const records = (p.measurements || []).filter(m => m.qualityId === q.id);
-    return `<details><summary class="btn secondary">Détail · ${records.length} mesure(s)</summary>
-      <div class="stack" style="margin-top:14px">${q.guidance ? `<div class="notice">${esc(q.guidance)}</div>` : ''}
-      <div class="btn-row"><button class="btn secondary" type="button" data-add-measurement="${q.id}">+ Mesure</button>
-      ${q.aggregate ? `<button class="btn secondary" type="button" data-auto-quality="${q.id}">Revenir au statut automatique (${automaticStatus(p,q)})</button><div class="small">${p.qualityOverrides?.[q.id] ? 'Statut global manuel' : 'Statut global automatique'} · A puis B puis C ; D ignoré sauf si tous D.</div>` : ''}</div>
-      ${[...records].reverse().map(m => `<section class="card"><div class="meta">${fmtDateTime(m.date)} · ${esc(m.side || p.side || 'Côté non renseigné')}</div><div>${esc(m.summary || '')}</div>
-        ${measurementValuesHTML(q.fields || [],m.values || {})}
-        ${(q.components || []).map(c => {const data = m.components?.[c.id] || {}; return `<div><strong>${esc(c.name)} · ${esc(data.status || 'D')}</strong>${measurementValuesHTML(c.fields,data)}${q.bilateral ? `<div class="small">LSI : ${lsi(data)}</div>` : ''}</div>`;}).join('')}
-        ${m.note ? `<div>${esc(m.note)}</div>` : ''}<div class="btn-row"><button class="btn secondary" type="button" data-edit-measurement="${esc(m.id)}">Modifier</button><button class="btn danger" type="button" data-delete-measurement="${esc(m.id)}">Supprimer</button></div></section>`).join('')}
-      </div></details>`;
-  }
-  function measurementValuesHTML(fields, values) {
+  function measurementValuesHTML(fields,values) {
     return fields.filter(f => values[f.id] !== '' && values[f.id] != null).map(f => `<div class="small">${esc(f.label)} : ${esc(values[f.id])}</div>`).join('');
   }
   function lsi(data) {
     if (data.affected == null || data.affected === '' || data.contralateral == null || data.contralateral === '') return '—';
-    const affected = Number(data.affected), reference = Number(data.contralateral);
-    return Number.isFinite(affected) && Number.isFinite(reference) && affected >= 0 && reference > 0 ? `${(affected/reference*100).toFixed(1)} %` : '—';
+    const a = Number(data.affected), b = Number(data.contralateral);
+    return Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b > 0 ? `${(a/b*100).toFixed(1)} %` : '—';
+  }
+  function pivotMetricsHTML(p,m) {
+    const q = qualitiesFor(p).find(q => q.id === m.qualityId);
+    if (!q) return '';
+    return `${measurementValuesHTML(q.fields || [],m.values || {})}${(q.components || []).filter(c => hasValues(m.components?.[c.id])).map(c => `<div><strong>${esc(c.name)}${c.kind !== 'metric' && m.components[c.id].status ? ' · '+esc(m.components[c.id].status) : ''}</strong>${measurementValuesHTML(c.fields,m.components[c.id])}${q.bilateral ? `<div class="small">LSI : ${lsi(m.components[c.id])}</div>` : ''}</div>`).join('')}`;
+  }
+  function measurementDetailHTML(p,q) {
+    const tests = visibleTests(p,q), other = q.tests.filter(t => !tests.includes(t));
+    const records = p.pivots.filter(m => m.qualityId === q.id);
+    return `<details><summary class="btn secondary">Détail · mesures et décisions</summary><div class="stack" style="margin-top:14px">
+      ${q.guidance ? `<div class="notice">${esc(q.guidance)}</div>` : ''}
+      <div class="btn-row">${tests.map(test => `<button class="btn secondary" type="button" data-start-quality="${q.id}" data-start-test="${esc(test)}">${esc(test)}</button>`).join('')}</div>
+      ${other.length ? `<details><summary class="btn secondary">+ Autre mesure</summary><div class="btn-row">${other.map(test => `<button class="btn secondary" type="button" data-start-quality="${q.id}" data-start-test="${esc(test)}">${esc(test)}</button>`).join('')}</div></details>` : ''}
+      ${q.aggregate ? `<div class="small">${p.qualityOverrides?.[q.id] ? 'Statut global manuel' : 'Statut global automatique'}</div><button class="btn secondary" type="button" data-auto-quality="${q.id}">Revenir au statut automatique</button>` : ''}
+      ${p.decisionUnresolved?.[q.id] ? '<div class="notice">Décision supprimée — statut à réévaluer. La dernière lettre affichée est conservée sans nouvelle interprétation automatique.</div>' : ''}
+      ${[...records].reverse().map(m => pivotTimelineHTML(m,p)).join('') || '<div class="small">Aucune mesure enregistrée.</div>'}
+      </div></details>`;
   }
   function wireMeasurements(holder,p) {
-    holder.querySelectorAll('[data-add-measurement]').forEach(b => b.onclick = () => openMeasurementModal(p,qualitiesFor(p).find(q => q.id === b.dataset.addMeasurement)));
-    holder.querySelectorAll('[data-edit-measurement]').forEach(b => b.onclick = () => {
-      const m = p.measurements.find(m => m.id === b.dataset.editMeasurement);
-      openMeasurementModal(p,qualitiesFor(p).find(q => q.id === m.qualityId),m);
-    });
-    holder.querySelectorAll('[data-delete-measurement]').forEach(b => b.onclick = () => {
-      if (!confirm('Supprimer définitivement cette mesure ?')) return;
-      const index = p.measurements.findIndex(m => m.id === b.dataset.deleteMeasurement);
-      if (index < 0) return;
-      const q = qualitiesFor(p).find(q => q.id === p.measurements[index].qualityId);
-      p.measurements.splice(index,1); refreshAutomaticStatus(p,q);
-      p.updatedAt = nowISO(); saveDB(); renderCase();
+    holder.querySelectorAll('[data-start-test]').forEach(b => b.onclick = () => {
+      const q = qualitiesFor(p).find(q => q.id === b.dataset.startQuality);
+      rememberTest(p,q,b.dataset.startTest);openPivotModal(p,null,q.id,b.dataset.startTest);
     });
     holder.querySelectorAll('[data-auto-quality]').forEach(b => b.onclick = () => {
-      const q = qualitiesFor(p).find(q => q.id === b.dataset.autoQuality);
-      p.qualityOverrides ||= {}; delete p.qualityOverrides[q.id]; refreshAutomaticStatus(p,q);
-      p.updatedAt = nowISO(); saveDB(); renderCase();
+      p.qualityOverrides ||= {}; delete p.qualityOverrides[b.dataset.autoQuality];
+      refreshAutomaticStatus(p,qualitiesFor(p).find(q => q.id === b.dataset.autoQuality));
+      p.updatedAt = nowISO();saveDB();renderCase();
     });
+    wireRecordActions(holder,p,'pivot');
   }
-  function measurementFields(fields, values, prefix) {
-    return fields.map(f => `<label class="label">${esc(f.label)}<input class="input" name="${prefix}.${f.id}" type="${f.type}" ${f.type === 'number' ? 'step="any"' : 'maxlength="300"'} value="${esc(values[f.id] ?? '')}" /></label>`).join('');
+  function measurementFields(fields,values,prefix) {
+    const input = f => `<label class="label">${esc(f.label)}<input class="input" name="${prefix}.${f.id}" type="${f.type}" ${f.type === 'number' ? 'step="any"' : 'maxlength="300"'} value="${esc(values[f.id] ?? '')}" /></label>`;
+    const optional = fields.filter(f => /reference|cutoff/i.test(f.id));
+    return fields.filter(f => !optional.includes(f)).map(input).join('') + (optional.length ? `<details ${optional.some(f => values[f.id]) ? 'open' : ''}><summary class="btn secondary">Références (facultatif)</summary>${optional.map(input).join('')}</details>` : '');
   }
-  function openMeasurementModal(p,q,existing=null) {
-    const record = existing || {values:{},components:{},side:p.side,note:'',summary:''};
-    modalContent.innerHTML = `<form id="measurementForm" class="modal-inner"><div class="modal-head"><h2>${esc(q.name)}</h2><button type="button" class="close-btn" data-close>×</button></div>
-      <div class="notice">${esc(q.question || q.exit)} Aucun seuil automatique. Les références peuvent rester vides.</div>
-      <label class="label">Côté atteint / mesuré<select class="select" name="side">${['','Droit','Gauche','Bilatéral','Non précisé'].map(side => `<option value="${side}" ${side === record.side ? 'selected' : ''}>${side || 'Non renseigné'}</option>`).join('')}</select></label>
-      <div class="form-grid two">${measurementFields(q.fields || [],record.values || {},'values')}</div>
-      ${(q.components || []).map(c => {const data = record.components?.[c.id] || {};return `<fieldset class="card"><legend>${esc(c.name)}</legend><div class="form-grid two">${measurementFields(c.fields,data,c.id)}</div>
-        ${q.bilateral ? `<output data-lsi="${c.id}">LSI : ${lsi(data)}</output>` : ''}
-        <label class="label">Statut clinique<select class="select" name="${c.id}.status">${['D','A','B','C'].map(st => `<option ${st === data.status ? 'selected' : ''}>${st}</option>`).join('')}</select></label></fieldset>`;}).join('')}
-      <label class="label">Synthèse courte / éléments limitants<input class="input" name="summary" maxlength="220" value="${esc(record.summary || '')}" /></label>
-      <label class="label">Note courte / protocole<textarea class="textarea" name="note" maxlength="800">${esc(record.note || '')}</textarea></label>
-      <button class="btn primary" type="submit">Enregistrer la mesure</button></form>`;
-    openModal(); modalContent.querySelector('[data-close]').onclick = closeModal;
-    const form = document.getElementById('measurementForm');
-    form.oninput = () => {
-      (q.components || []).forEach(c => {
-        const output = form.querySelector(`[data-lsi="${c.id}"]`);
-        if (output) output.textContent = `LSI : ${lsi({affected:form.elements[`${c.id}.affected`].value,contralateral:form.elements[`${c.id}.contralateral`].value})}`;
-      });
-    };
-    form.onsubmit = e => {
-      e.preventDefault(); const fd = new FormData(form);
-      const read = (fields,prefix) => Object.fromEntries(fields.map(f => [f.id,String(fd.get(`${prefix}.${f.id}`) || '').trim()]));
-      const values = {side:fd.get('side'),values:read(q.fields || [],'values'),components:Object.fromEntries((q.components || []).map(c => [c.id,{...read(c.fields,c.id),status:fd.get(`${c.id}.status`)}])),summary:String(fd.get('summary') || '').trim(),note:String(fd.get('note') || '').trim()};
-      if (existing) Object.assign(existing,values,{updatedAt:nowISO()});
-      else {p.measurements ||= []; p.measurements.push({id:uid('measure'),qualityId:q.id,date:nowISO(),...values});}
-      refreshAutomaticStatus(p,q); p.updatedAt = nowISO(); saveDB(); closeModal(); renderCase();
-    };
-  }
+  function openMeasurementModal(p,q,existing=null) {openPivotModal(p,existing,q.id);}
 
   function archiveCase(c) {
     if (!confirm('Archiver ce cas ?')) return;
@@ -768,7 +807,10 @@ th, td { padding: 15px 14px; font-size: 14px; }
     holder.querySelectorAll(`[data-delete-${kind}]`).forEach(button => button.onclick = () => {
       const index = records.findIndex(item => item.id === button.getAttribute(`data-delete-${kind}`));
       if (index < 0 || !confirm(kind === 'session' ? `Supprimer définitivement la séance S${records[index].n} ?` : 'Supprimer définitivement ce test pivot ?')) return;
-      records.splice(index, 1); p.updatedAt = nowISO(); saveDB(); renderCase();
+      const removed = records[index];
+      records.splice(index, 1);
+      if (kind === 'pivot' && (removed.chosenStatus || removed.components)) refreshAutomaticStatus(p,qualitiesFor(p).find(q => q.id === removed.qualityId));
+      p.updatedAt = nowISO(); saveDB(); renderCase();
     });
   }
   function lastSessionNumber(p) {
@@ -800,7 +842,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   }
   function pivotTimelineHTML(x, p) {
     const q = qualitiesFor(p).find(q => q.id === x.qualityId);
-    return `<div class="timeline-item"><strong>${esc(q?.name || '')} · ${esc(x.test)}</strong><div>${esc(x.result)}</div><div class="small">S${x.sessionNumber || '—'} · ${fmtDate(x.date)} · ${esc(x.question || 'Question non renseignée')}</div><div class="small"><strong>Décision :</strong> ${esc(x.decision || '—')}</div>${recordActions('pivot',x.id)}</div>`;
+    return `<div class="timeline-item"><strong>${esc(q?.name || '')} · ${esc(x.test)}</strong><div>${esc(x.result || '')}</div>${pivotMetricsHTML(p,x)}${x.proposedStatus ? `<div class="small">Statut proposé : ${esc(x.proposedStatus)} · ${esc(x.referenceUsed || '')}</div>` : ''}${x.chosenStatus ? `<div class="badge ${x.chosenStatus.toLowerCase()}">Décision : ${x.chosenStatus}</div>` : ''}<div class="small">S${x.sessionNumber || '—'} · ${fmtDate(x.date)} · ${esc(x.question || 'Question non renseignée')}</div><div class="small"><strong>Décision :</strong> ${esc(x.decision || '—')}</div>${recordActions('pivot',x.id)}</div>`;
   }
 
   function openPatientModal(existing=null) {
@@ -898,44 +940,98 @@ th, td { padding: 15px 14px; font-size: 14px; }
     });
   }
 
-  function openPivotModal(p, existing=null) {
-    const defaultSession = existing ? existing.sessionNumber : lastSessionNumber(p) || 1;
-    modalContent.innerHTML = `<form id="pivotForm" class="modal-inner">
-      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Test pivot</div><h2>Mesure qui change la décision</h2></div><button class="close-btn" type="button" data-close>×</button></div>
-      <div class="form-grid two"><label class="label">Qualité<select id="pivotQuality" name="qualityId" class="select">${qualitiesFor(p).map(q=>`<option value="${q.id}">${esc(q.name)}</option>`).join('')}</select></label><label class="label">Séance<input name="sessionNumber" class="input" type="number" inputmode="numeric" min="1" max="999" value="${defaultSession}" /></label></div>
-      <label class="label">Test<select id="pivotTest" name="test" class="select"></select></label>
-      <label class="label">Résultat<input name="result" class="input" required maxlength="160" placeholder="${esc(templateFor(p).pivotExamples?.result || 'Ex. WBLT 9,5 cm / LSI 92 %')}" /></label>
-      <label class="label">Question clinique<input name="question" class="input" maxlength="220" placeholder="${esc(templateFor(p).pivotExamples?.question || 'Ex. La mobilité limite-t-elle encore le squat/course ?')}" /></label>
-      <label class="label">Décision / transition<input name="decision" class="input" maxlength="220" placeholder="${esc(templateFor(p).pivotExamples?.decision || 'Ex. Mobilité A → C ; arrêter le travail spécifique')}" /></label>
-      <button class="btn primary" type="submit">Enregistrer le pivot</button>
-    </form>`;
-    openModal();
-    const qSelect = document.getElementById('pivotQuality'), tSelect = document.getElementById('pivotTest');
-    let suggestedQuestion = '';
-    const fill = () => {
-      const q = qualitiesFor(p).find(x=>x.id===qSelect.value);
-      tSelect.innerHTML = (q ? q.tests : []).map(t=>`<option>${esc(t)}</option>`).join('');
-      const question = document.getElementById('pivotForm').elements.question;
-      if (!existing && (!question.value || question.value === suggestedQuestion)) question.value = q?.question || '';
-      suggestedQuestion = q?.question || '';
-    };
-    if (existing && ![...qSelect.options].some(o => o.value === existing.qualityId)) qSelect.add(new Option(existing.qualityId,existing.qualityId));
-    if (existing) qSelect.value = existing.qualityId;
-    fill();
-    if (existing) {
-      if (![...tSelect.options].some(o => o.value === existing.test)) tSelect.add(new Option(existing.test,existing.test));
-      tSelect.value = existing.test;
-      const form = document.getElementById('pivotForm');
-      for (const key of ['result','question','decision']) form.elements[key].value = existing[key] || '';
+  function openPivotModal(p, existing=null, initialQuality=null, initialTest=null) {
+    const record = existing || {};
+    const profile = profileFor(p);
+    let showAll = false;
+    const recommendedQualities = profile.qualities || qualitiesFor(p).map(q => q.id);
+    const initial = record.qualityId || initialQuality || recommendedQualities[0];
+    modalContent.innerHTML = `<form id="pivotForm" class="modal-inner"><div class="modal-head"><h2>Mesure → décision clinique</h2><button class="close-btn" type="button" data-close>×</button></div>
+      <div class="form-grid two"><label class="label">Qualité<select class="select" id="pivotQuality" name="qualityId"></select></label><label class="label">Séance (facultatif)<input class="input" type="number" min="1" step="1" name="sessionNumber" value="${esc(record.sessionNumber || '')}" /></label></div>
+      <button class="btn secondary" type="button" id="otherQualityBtn">+ Autre qualité</button>
+      <label class="label">Test / mesure<select class="select" id="pivotTest" name="test" required></select></label><button class="btn secondary" type="button" id="otherTestBtn">+ Autre mesure</button>
+      <div id="pivotMetrics" class="stack"></div>
+      <label class="label">Résultat / synthèse courte<input class="input" name="result" maxlength="220" value="${esc(record.result || record.summary || '')}" /></label>
+      <div id="interpretationNotice" class="notice"></div>
+      <label class="label"><span id="chosenStatusLabel">Décision clinique A/B/C/D</span><select class="select" name="chosenStatus" required><option value="">Choisir…</option>${['A','B','C','D'].map(st => `<option ${record.chosenStatus === st ? 'selected' : ''}>${st}</option>`).join('')}</select></label>
+      <label class="label">Commentaire / décision<input class="input" name="decision" maxlength="800" value="${esc(record.decision ?? record.note ?? '')}" /></label>
+      <details><summary class="btn secondary">Contexte du test</summary><label class="label">Côté<select class="select" name="side">${['','Droit','Gauche','Bilatéral','Non précisé'].map(side => `<option value="${side}" ${side === (record.side || p.side || '') ? 'selected' : ''}>${side || 'Non renseigné'}</option>`).join('')}</select></label><label class="label">Question clinique<input class="input" name="question" maxlength="220" value="${esc(record.question || '')}" /></label></details>
+      <button class="btn primary" type="submit">Enregistrer le pivot</button></form>`;
+    const form = document.getElementById('pivotForm'), qSelect = form.elements.qualityId, testSelect = form.elements.test;
+    const region = document.getElementById('pivotMetrics');
+    let q, targets = [], fields = [], proposed = null, referenceUsed = null, source = record, currentKey = null;
+    const drafts = new Map();
+    function fillQualities(selected) {
+      qSelect.innerHTML = qualitiesFor(p).filter(q => showAll || recommendedQualities.includes(q.id) || q.id === selected).map(q => `<option value="${q.id}">${esc(q.name)}</option>`).join('');
+      qSelect.value = selected;
+      document.getElementById('otherQualityBtn').hidden = showAll || recommendedQualities.length === qualitiesFor(p).length;
     }
-    qSelect.addEventListener('change',fill); modalContent.querySelector('[data-close]').addEventListener('click',closeModal);
-    document.getElementById('pivotForm').addEventListener('submit', e => {
-      e.preventDefault(); const fd = new FormData(e.currentTarget); const sn = Math.max(1, Math.min(999, Number(fd.get('sessionNumber')) || defaultSession));
-      const values = {qualityId:fd.get('qualityId'), test:fd.get('test'), result:String(fd.get('result')||'').trim(), question:String(fd.get('question')||'').trim(), decision:String(fd.get('decision')||'').trim(), sessionNumber:sn};
-      if (existing) Object.assign(existing,values);
-      else p.pivots.push({id:uid('piv'), date:nowISO(), ...values});
-      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Test pivot enregistré'); route.tab='pivots'; renderCase();
-    });
+    function fillTests(selected=null,all=false,render=true) {
+      q = qualitiesFor(p).find(q => q.id === qSelect.value);
+      const suggested = visibleTests(p,q);
+      const list = all ? q.tests : [...new Set([...suggested,...(selected ? [selected] : [])])];
+      testSelect.innerHTML = list.map(test => `<option>${esc(test)}</option>`).join('');
+      if (selected && list.includes(selected)) testSelect.value = selected;
+      document.getElementById('otherTestBtn').hidden = all || list.length === q.tests.length;
+      if (render) renderMetrics();
+    }
+    function renderMetrics() {
+      if (currentKey) drafts.set(currentKey,readData());
+      currentKey = `${q.id}:${testSelect.value}`;
+      source = drafts.get(currentKey) || (q.id === record.qualityId ? record : {});
+      const ids = q.testTargets?.[testSelect.value] || [];
+      // Historical multi-component snapshots remain editable without losing any component.
+      targets = (q.components || []).filter(c => ids.includes(c.id) || (existing && q.id === record.qualityId && record.originalMeasurementId && record.components?.[c.id]));
+      fields = q.testFields?.[testSelect.value] ? (q.fields || []).filter(f => q.testFields[testSelect.value].includes(f.id)) : q.fields || [];
+      region.innerHTML = `<div class="form-grid two">${measurementFields(fields,source.values || {},'values')}</div>${targets.map(c => {
+        const data = source.components?.[c.id] || {};
+        return `<fieldset class="card"><legend>${esc(c.name)}</legend><div class="form-grid two">${measurementFields(c.fields,data,c.id)}</div>${q.bilateral ? `<output data-lsi="${c.id}">LSI : ${lsi(data)}</output>` : ''}
+        ${c.kind !== 'metric' && targets.length > 1 ? `<label class="label">Statut de la sous-composante<select name="${c.id}.status" class="select">${['D','A','B','C'].map(st => `<option ${data.status === st ? 'selected' : ''}>${st}</option>`).join('')}</select></label>` : ''}</fieldset>`;
+      }).join('')}`;
+      form.elements.result.required = !fields.length && !targets.length;
+      if (!existing && !form.elements.question.value) form.elements.question.value = q.question || '';
+      updateDerived();
+    }
+    function readData() {
+      const fd = new FormData(form);
+      const read = (schema,prefix) => Object.fromEntries(schema.map(f => [f.id,String(fd.get(`${prefix}.${f.id}`) || '').trim()]));
+      return {values:{...(source.values || {}),...read(fields,'values')},components:Object.fromEntries(targets.map(c => [c.id,{...(source.components?.[c.id] || {}),...read(c.fields,c.id),...(c.kind !== 'metric' ? {status:targets.length > 1 ? fd.get(`${c.id}.status`) : fd.get('chosenStatus')} : {})}]))};
+    }
+    function updateDerived() {
+      const data = readData();
+      targets.forEach(c => {const output = region.querySelector(`[data-lsi="${c.id}"]`);if (output) output.textContent = `LSI : ${lsi(data.components[c.id])}`;});
+      // Only explicitly configured, referenced rules can offer a proposal. No default numeric cutoffs.
+      const multiComponent = q.aggregate && targets.length > 1;
+      form.elements.chosenStatus.disabled = !!multiComponent;
+      document.getElementById('chosenStatusLabel').textContent = multiComponent ? 'Statut global calculé (override possible dans Qualités)' : 'Décision clinique A/B/C/D';
+      if (multiComponent) form.elements.chosenStatus.value = aggregateStatus(Object.values(data.components).map(part => part.status));
+      const rule = q.interpretation;
+      proposed = rule?.reference && typeof rule.propose === 'function' ? rule.propose(data) : null;
+      if (!['A','B','C','D'].includes(proposed)) proposed = null;
+      referenceUsed = proposed ? rule.reference : null;
+      document.getElementById('interpretationNotice').textContent = proposed ? `Statut proposé : ${proposed} · ${referenceUsed} — modifiable par le clinicien.` : 'Pas de cut-off validé disponible — décision clinique requise.';
+    }
+    fillQualities(initial); fillTests(record.test || initialTest);
+    document.getElementById('otherQualityBtn').onclick = () => {showAll=true;fillQualities(qSelect.value);};
+    document.getElementById('otherTestBtn').onclick = () => {const current=testSelect.value;fillTests(current,true,false);};
+    qSelect.onchange = () => {form.elements.chosenStatus.value='';fillTests();};
+    testSelect.onchange = () => {rememberTest(p,q,testSelect.value);renderMetrics();};
+    form.oninput = updateDerived;
+    modalContent.querySelector('[data-close]').onclick = closeModal;
+    form.onsubmit = e => {
+      e.preventDefault();const oldQuality = existing?.qualityId;
+      const chosenStatus = form.elements.chosenStatus.value;
+      const data = readData();
+      const values = {...data,qualityId:q.id,test:testSelect.value,componentIds:targets.map(c => c.id),chosenStatus,proposedStatus:proposed,referenceUsed,
+        result:form.elements.result.value.trim(),summary:form.elements.result.value.trim(),decision:form.elements.decision.value.trim(),
+        side:form.elements.side.value,question:form.elements.question.value.trim(),sessionNumber:form.elements.sessionNumber.value ? Number(form.elements.sessionNumber.value) : null};
+      if (existing) Object.assign(existing,values,{updatedAt:nowISO()});
+      else p.pivots.push({id:uid('piv'),date:nowISO(),...values});
+      rememberTest(p,q,testSelect.value,false);
+      if (oldQuality && oldQuality !== q.id) refreshAutomaticStatus(p,qualitiesFor(p).find(q => q.id === oldQuality));
+      refreshAutomaticStatus(p,q);p.updatedAt=nowISO();saveDB();closeModal();route.tab='pivots';renderCase();
+    };
+    openModal();
   }
 
   function openSettings() {
