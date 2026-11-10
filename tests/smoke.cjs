@@ -19,7 +19,7 @@ const KEY = 'cockpit_clinique_v1_data';
     assert.equal((await db()).cases.length,0);
     const createCase = async title => {
       await page.locator('#newCaseBtn').click();
-      assert.equal(await page.locator('[name=templateId] option').count(),1);
+      assert.equal(await page.locator('[name=templateId] option').count(),2);
       await page.locator('[name=title]').fill(title);
       await page.locator('[name=side]').selectOption('Droit');
       await page.locator('[name=subtype]').selectOption('Syndesmose');
