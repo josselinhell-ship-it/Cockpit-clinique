@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#15324a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Cockpit Clinique" />
+  <style>
+:root {
+  --navy: #15324a;
+  --navy-2: #214d6d;
+  --ink: #1d2830;
+  --muted: #6d7a84;
+  --bg: #f4f7f9;
+  --card: #ffffff;
+  --border: #d9e1e6;
+  --soft: #edf3f6;
+  --a: #c95c5c;
+  --b: #d39a44;
+  --c: #4f9b73;
+  --d: #7b8790;
+  --shadow: 0 8px 24px rgba(27, 52, 71, .08);
+  --radius: 18px;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  padding-bottom: calc(82px + env(safe-area-inset-bottom));
+}
+button, input, select, textarea { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+.hidden { display: none !important; }
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top)) 18px 14px;
+  background: rgba(21, 50, 74, .96);
+  color: white;
+  backdrop-filter: blur(14px);
+}
+.topbar h1 { margin: 1px 0 0; font-size: clamp(20px, 4vw, 27px); line-height: 1.1; }
+.eyebrow { font-size: 12px; opacity: .72; text-transform: uppercase; letter-spacing: .08em; }
+.top-actions { display: flex; gap: 8px; }
+.icon-btn {
+  width: 44px; height: 44px; border: 0; border-radius: 14px;
+  background: rgba(255,255,255,.12); color: white; font-size: 24px;
+}
+.app-shell { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.bottom-nav {
+  position: fixed; z-index: 30; left: 0; right: 0; bottom: 0;
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(255,255,255,.96); border-top: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+}
+.nav-btn { min-height: 48px; border: 0; border-radius: 14px; background: transparent; color: var(--muted); font-weight: 700; }
+.nav-btn.active, #newPatientBtn { background: var(--navy); color: white; }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px;
+}
+.stack { display: grid; gap: 14px; }
+.grid-2 { display: grid; gap: 14px; }
+@media (min-width: 760px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+.section-head { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin: 4px 0 10px; }
+.section-head h2 { margin: 0; font-size: 18px; }
+.section-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.input, .select, .textarea {
+  width: 100%; min-height: 46px; border: 1px solid var(--border); border-radius: 13px;
+  background: white; color: var(--ink); padding: 11px 12px; font-size: 16px;
+}
+.textarea { min-height: 88px; resize: vertical; }
+.label { display: grid; gap: 6px; font-size: 13px; font-weight: 700; color: #33424c; }
+.form-grid { display:grid; gap:12px; }
+@media (min-width:700px) { .form-grid.two { grid-template-columns:1fr 1fr; } }
+.btn {
+  min-height: 46px; border-radius: 13px; border: 1px solid var(--border); padding: 10px 14px;
+  font-weight: 800; background: white; color: var(--ink);
+}
+.btn.primary { border-color: var(--navy); background: var(--navy); color: white; }
+.btn.secondary { color: var(--navy); border-color: #9eb2c1; background: #f7fbfd; }
+.btn.danger { color: #9e3d3d; border-color: #e2b9b9; background: #fff7f7; }
+.btn-row { display:flex; flex-wrap:wrap; gap:10px; }
+.patient-card { display:grid; gap:10px; cursor:pointer; }
+.patient-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.patient-card h3 { margin:0; font-size:18px; }
+.meta { color:var(--muted); font-size:13px; }
+.badges { display:flex; flex-wrap:wrap; gap:7px; }
+.badge { display:inline-flex; align-items:center; min-height:28px; padding:4px 9px; border-radius:999px; background:var(--soft); font-size:12px; font-weight:700; }
+.badge.a { background:#f9e7e7; color:#8f4040; }
+.badge.b { background:#fbf0dd; color:#8d6428; }
+.badge.c { background:#e6f3eb; color:#2f6f4e; }
+.badge.d { background:#edf0f2; color:#5c6670; }
+.empty { text-align:center; color:var(--muted); padding:34px 18px; border:1px dashed #bdc9d0; border-radius:var(--radius); background:rgba(255,255,255,.5); }
+.hero { display:grid; gap:10px; background:linear-gradient(135deg, #15324a, #214d6d); color:white; border-radius:22px; padding:18px; box-shadow:var(--shadow); }
+.hero h2 { margin:0; font-size:24px; }
+.hero .meta { color:rgba(255,255,255,.75); }
+.hero-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+.hero-actions .btn { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.22); color:white; }
+.tabs { display:flex; gap:8px; overflow:auto; padding-bottom:2px; }
+.tab { white-space:nowrap; min-height:42px; border:1px solid var(--border); border-radius:12px; background:white; padding:8px 12px; font-weight:800; color:var(--muted); }
+.tab.active { background:var(--navy); color:white; border-color:var(--navy); }
+.quality-card { display:grid; gap:12px; }
+.quality-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.quality-card h3 { margin:0; font-size:16px; }
+.status-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.status-btn { min-height:44px; border:1px solid var(--border); border-radius:12px; background:white; font-weight:900; }
+.status-btn.active[data-status="A"] { background:var(--a); color:white; border-color:var(--a); }
+.status-btn.active[data-status="B"] { background:var(--b); color:white; border-color:var(--b); }
+.status-btn.active[data-status="C"] { background:var(--c); color:white; border-color:var(--c); }
+.status-btn.active[data-status="D"] { background:var(--d); color:white; border-color:var(--d); }
+.quality-foot { display:grid; gap:5px; color:var(--muted); font-size:12px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { min-height:38px; border:1px solid var(--border); border-radius:999px; padding:7px 11px; background:white; font-size:13px; font-weight:700; color:#4b5962; }
+.chip.selected { background:#dfeaf0; border-color:#8eabbc; color:var(--navy); }
+.timeline { display:grid; gap:10px; }
+.timeline-item { border-left:4px solid #b7c7d1; padding:10px 12px; background:#fbfcfd; border-radius:0 12px 12px 0; }
+.timeline-item strong { display:block; margin-bottom:4px; }
+.timeline-item .small { color:var(--muted); font-size:12px; }
+.table-wrap { overflow-x:auto; border-radius:14px; border:1px solid var(--border); }
+table { width:100%; border-collapse:collapse; min-width:690px; background:white; }
+th,td { text-align:left; vertical-align:top; padding:11px 10px; border-bottom:1px solid #e8edf0; font-size:13px; }
+th { background:#eef3f6; color:#40515d; position:sticky; top:0; }
+tr:last-child td { border-bottom:0; }
+.modal { width:min(720px, calc(100% - 24px)); border:0; border-radius:22px; padding:0; box-shadow:0 30px 80px rgba(0,0,0,.25); }
+.modal::backdrop { background:rgba(18,31,40,.42); backdrop-filter:blur(3px); }
+.modal-inner { padding:18px; display:grid; gap:14px; }
+.modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.modal-head h2 { margin:0; }
+.close-btn { width:44px; height:44px; border:0; border-radius:12px; background:var(--soft); font-size:22px; }
+.toast { position:fixed; z-index:50; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px); opacity:0; pointer-events:none; background:#152733; color:white; border-radius:999px; padding:10px 14px; font-size:13px; font-weight:700; transition:.2s ease; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.kpi { background:#f6f9fb; border:1px solid var(--border); border-radius:14px; padding:11px; }
+.kpi strong { font-size:20px; display:block; }
+.kpi span { color:var(--muted); font-size:11px; }
+.notice { border:1px solid #d6e1e8; border-radius:14px; padding:12px; background:#f7fafc; color:#475862; font-size:13px; }
+.search { margin-bottom:14px; }
+.small { font-size:12px; color:var(--muted); }
+@media (max-width: 520px) {
+  .app-shell { padding: 12px; }
+  .card { padding: 14px; }
+  .kpi-row { grid-template-columns:1fr 1fr 1fr; }
+  .quality-head { display:grid; }
+}
+
+  </style>
+  <title>Cockpit Clinique</title>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">Cockpit clinique</div>
+      <h1 id="pageTitle">Patients actifs</h1>
+    </div>
+    <div class="top-actions">
+      <button id="backBtn" class="icon-btn hidden" type="button" aria-label="Retour">←</button>
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="Sauvegarde et réglages">⋯</button>
+    </div>
+  </header>
+
+  <main id="app" class="app-shell" aria-live="polite"></main>
+
+  <nav class="bottom-nav" aria-label="Navigation principale">
+    <button class="nav-btn active" data-route="patients" type="button">Actifs</button>
+    <button class="nav-btn" data-route="archives" type="button">Archives</button>
+    <button class="nav-btn" id="newPatientBtn" type="button">+ Patient</button>
+  </nav>
+
+  <dialog id="modal" class="modal">
+    <div id="modalContent"></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+(() => {
+  'use strict';
+
+  const STORAGE_KEY = 'cockpit_clinique_v1_data';
+  const CURRENT_VERSION = 1;
+
+  const QUALITIES = [
+    {
+      id: 'mobility', name: 'Mobilité / ROM exploitable',
+      pivot: 'WBLT / ROM ciblée', exit: 'Changement > MDC + ROM suffisante pour la tâche',
+      tests: ['WBLT', 'ROM ciblée', 'Autre']
+    },
+    {
+      id: 'strength', name: 'Force cheville-pied',
+      pivot: 'Dynamométrie VALD', exit: 'LSI ~90–95 % si pertinent + valeur absolue/relative satisfaisante',
+      tests: ['Dynamométrie VALD', 'LSI', 'Force relative', 'Autre']
+    },
+    {
+      id: 'capacity', name: 'Capacité locale',
+      pivot: 'Single-leg heel-rise / HRET', exit: 'Valeur absolue + symétrie + tâche réelle tolérée',
+      tests: ['Single-leg heel-rise', 'HRET', 'Autre']
+    },
+    {
+      id: 'sensorimotor', name: 'Contrôle sensorimoteur',
+      pivot: 'Foot Lift / Y-Balance Test', exit: 'Test satisfaisant ; plus de travail spécifique nécessaire',
+      tests: ['Foot Lift', 'Y-Balance Test', 'Autre']
+    },
+    {
+      id: 'ssc', name: 'SSC / capacité réactive',
+      pivot: 'ForceDecks / hops / RSI', exit: 'Qualité mécanique + répétabilité + tolérance + transfert',
+      tests: ['RSI', 'Hop test', 'ForceDecks', 'Autre']
+    },
+    {
+      id: 'function', name: 'Fonction / exposition',
+      pivot: 'PSFS / Ankle-GO / tâche réelle', exit: 'Exposition cible tolérée + critères globaux suffisants',
+      tests: ['PSFS', 'Ankle-GO', 'Exposition réelle', 'Autre']
+    }
+  ];
+
+  const LESIONS = ['Latérale', 'Médiale', 'Syndesmose', 'Médio-pied / Chopart', 'Postérieure', 'ICC / récidivante', 'Mixte / autre'];
+  const LESION_MEMO = {
+    'Latérale': 'DF + fibulaires/éversion + YBT.',
+    'Médiale': 'DF + inverseurs/tibial postérieur + YBT.',
+    'Syndesmose': 'Protéger les contraintes ouvrant la mortaise ; restaurer la DF progressivement selon stabilité/tolérance.',
+    'Médio-pied / Chopart': 'Douleur / tolérance à la charge + mobilité médio/avant-pied + vigilance lésions associées.',
+    'Postérieure': 'Douleur en flexion plantaire/compression + FHL / composante osseuse selon présentation.',
+    'ICC / récidivante': 'Profil Hertel ; priorités très individualisées.',
+    'Mixte / autre': 'Adapter les priorités au profil lésionnel et à la tâche cible.'
+  };
+
+  const SESSION_OPTIONS = {
+    symptoms: ['Raideur', 'Œdème', 'Instabilité', 'Giving-way', 'Appréhension', 'Autre'],
+    exposure: ['AVQ', 'Travail', 'Marche', 'Escaliers', 'Course', 'Sauts', 'COD / pivots', 'Entraînement partiel', 'Entraînement complet', 'Compétition'],
+    tolerance: ['Bonne', 'Acceptable', 'Réaction <24 h', 'Réaction >24 h', 'Douleur réactive', 'Œdème réactif', 'Fatigue excessive'],
+    adherence: ['Complète', 'Partielle', 'Faible', 'Non faite', 'Consignes respectées', 'Consignes partiellement respectées', 'Auto-charge excessive']
+  };
+
+  const app = document.getElementById('app');
+  const pageTitle = document.getElementById('pageTitle');
+  const backBtn = document.getElementById('backBtn');
+  const modal = document.getElementById('modal');
+  const modalContent = document.getElementById('modalContent');
+  const toast = document.getElementById('toast');
+
+  let route = { name: 'patients', patientId: null, tab: 'overview' };
+  let db = loadDB();
+
+  function defaultDB() {
+    return { version: CURRENT_VERSION, patients: [], updatedAt: new Date().toISOString() };
+  }
+
+  function loadDB() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultDB();
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.patients)) return defaultDB();
+      return parsed;
+    } catch (e) {
+      return defaultDB();
+    }
+  }
+
+  function saveDB() {
+    db.updatedAt = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  }
+
+  function uid(prefix='id') {
+    return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function nowISO() { return new Date().toISOString(); }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' }).format(d);
+  }
+  function fmtDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }).format(d);
+  }
+  function esc(value='') {
+    return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
+  }
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+  function getPatient(id) { return db.patients.find(p => p.id === id); }
+  function statusLabel(status) { return ({A:'Prioritaire', B:'Déficitaire', C:'Suffisant', D:'Non pertinent / non testable'})[status] || ''; }
+
+  function newPatientObject(data) {
+    const status = {};
+    QUALITIES.forEach(q => status[q.id] = 'D');
+    return {
+      id: uid('pat'),
+      name: data.name.trim(),
+      context: data.context.trim(),
+      objective: data.objective.trim(),
+      targetFunction: data.targetFunction.trim(),
+      constraints: data.constraints.trim(),
+      lesion: data.lesion,
+      archived: false,
+      createdAt: nowISO(), updatedAt: nowISO(),
+      status,
+      statusHistory: [],
+      sessions: [],
+      pivots: []
+    };
+  }
+
+  function setRoute(name, patientId=null, tab='overview') {
+    route = { name, patientId, tab };
+    render();
+  }
+
+  function render() {
+    document.querySelectorAll('.nav-btn[data-route]').forEach(b => b.classList.toggle('active', b.dataset.route === route.name));
+    backBtn.classList.toggle('hidden', route.name !== 'patient');
+    if (route.name === 'patients') renderPatients(false);
+    else if (route.name === 'archives') renderPatients(true);
+    else if (route.name === 'patient') renderPatient();
+  }
+
+  function renderPatients(archived) {
+    pageTitle.textContent = archived ? 'Archives' : 'Patients actifs';
+    const list = db.patients.filter(p => p.archived === archived).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    app.innerHTML = `
+      <div class="search"><input id="searchInput" class="input" type="search" placeholder="Rechercher un patient…" autocomplete="off" /></div>
+      <div class="section-head"><div><h2>${archived ? 'Patients archivés' : 'Suivis en cours'}</h2><p>${list.length} patient${list.length>1?'s':''}</p></div></div>
+      <div id="patientList" class="stack"></div>`;
+    const holder = document.getElementById('patientList');
+    const renderList = q => {
+      const query = q.trim().toLowerCase();
+      const filtered = list.filter(p => [p.name,p.lesion,p.objective,p.targetFunction].join(' ').toLowerCase().includes(query));
+      holder.innerHTML = filtered.length ? filtered.map(patientCardHTML).join('') : `<div class="empty">${query ? 'Aucun résultat.' : archived ? 'Aucune archive.' : 'Aucun patient actif. Ajoute le premier patient.'}</div>`;
+      holder.querySelectorAll('[data-patient]').forEach(el => el.addEventListener('click', () => setRoute('patient', el.dataset.patient)));
+    };
+    renderList('');
+    document.getElementById('searchInput').addEventListener('input', e => renderList(e.target.value));
+  }
+
+  function patientCardHTML(p) {
+    const counts = {A:0,B:0,C:0,D:0};
+    QUALITIES.forEach(q => counts[p.status[q.id] || 'D']++);
+    return `<article class="card patient-card" data-patient="${p.id}" tabindex="0">
+      <div class="patient-top"><div><h3>${esc(p.name)}</h3><div class="meta">${esc(p.lesion)} · modifié ${fmtDate(p.updatedAt)}</div></div><span class="badge">${p.sessions.length} séance${p.sessions.length>1?'s':''}</span></div>
+      <div class="meta">${esc(p.objective || p.targetFunction || 'Objectif non renseigné')}</div>
+      <div class="badges"><span class="badge a">A ${counts.A}</span><span class="badge b">B ${counts.B}</span><span class="badge c">C ${counts.C}</span><span class="badge d">D ${counts.D}</span></div>
+    </article>`;
+  }
+
+  function renderPatient() {
+    const p = getPatient(route.patientId);
+    if (!p) { setRoute('patients'); return; }
+    pageTitle.textContent = p.name;
+    const tabs = [
+      ['overview','Synthèse'], ['qualities','Qualités'], ['sessions','Séances'], ['pivots','Tests pivots']
+    ];
+    app.innerHTML = `
+      <section class="hero">
+        <div><div class="meta">Cheville / pied · ${esc(p.lesion)}</div><h2>${esc(p.name)}</h2></div>
+        <div>${esc(p.objective || 'Objectif non renseigné')}</div>
+        <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button></div>
+      </section>
+      <div class="tabs" style="margin:14px 0">
+        ${tabs.map(([id,label]) => `<button class="tab ${route.tab===id?'active':''}" data-tab="${id}" type="button">${label}</button>`).join('')}
+      </div>
+      <div id="patientTab"></div>`;
+    document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { route.tab = b.dataset.tab; renderPatient(); }));
+    document.getElementById('quickSessionBtn').addEventListener('click', () => openSessionModal(p));
+    document.getElementById('quickPivotBtn').addEventListener('click', () => openPivotModal(p));
+    document.getElementById('editPatientBtn').addEventListener('click', () => openPatientModal(p));
+    const tab = document.getElementById('patientTab');
+    if (route.tab === 'overview') renderOverview(tab, p);
+    if (route.tab === 'qualities') renderQualities(tab, p);
+    if (route.tab === 'sessions') renderSessions(tab, p);
+    if (route.tab === 'pivots') renderPivots(tab, p);
+  }
+
+  function renderOverview(holder, p) {
+    const counts = {A:0,B:0,C:0,D:0}; QUALITIES.forEach(q => counts[p.status[q.id]]++);
+    const lastSession = p.sessions[p.sessions.length-1];
+    const lastPivot = p.pivots[p.pivots.length-1];
+    holder.innerHTML = `
+      <div class="stack">
+        <div class="kpi-row"><div class="kpi"><strong>${counts.A}</strong><span>qualités A</span></div><div class="kpi"><strong>${p.sessions.length}</strong><span>séances</span></div><div class="kpi"><strong>${p.pivots.length}</strong><span>tests pivots</span></div></div>
+        <div class="grid-2">
+          <section class="card"><div class="section-head"><div><h2>Identité clinique</h2><p>Le 20 % personnalisé</p></div></div>
+            <div class="stack small"><div><strong>Contexte / diagnostic :</strong><br>${esc(p.context || '—')}</div><div><strong>Fonction cible :</strong><br>${esc(p.targetFunction || '—')}</div><div><strong>Contraintes / notes :</strong><br>${esc(p.constraints || '—')}</div></div>
+          </section>
+          <section class="card"><div class="section-head"><div><h2>Repère lésionnel</h2><p>${esc(p.lesion)}</p></div></div><div class="notice">${esc(LESION_MEMO[p.lesion] || '')}</div></section>
+        </div>
+        <section class="card"><div class="section-head"><div><h2>Carte actuelle</h2><p>Dernier statut = statut courant</p></div><button id="goQualities" class="btn secondary" type="button">Ouvrir</button></div>
+          <div class="badges">${QUALITIES.map(q => `<span class="badge ${(p.status[q.id]||'D').toLowerCase()}">${esc(q.name)} · ${p.status[q.id]||'D'}</span>`).join('')}</div>
+        </section>
+        <div class="grid-2">
+          <section class="card"><div class="section-head"><div><h2>Dernière séance</h2><p>${lastSession ? 'S'+lastSession.n+' · '+fmtDate(lastSession.date) : 'Aucune'}</p></div></div>${lastSession ? sessionSummaryHTML(lastSession) : '<div class="empty">Pas encore de séance.</div>'}</section>
+          <section class="card"><div class="section-head"><div><h2>Dernier pivot</h2><p>${lastPivot ? fmtDate(lastPivot.date) : 'Aucun'}</p></div></div>${lastPivot ? pivotSummaryHTML(lastPivot) : '<div class="empty">Pas encore de test pivot.</div>'}</section>
+        </div>
+      </div>`;
+    document.getElementById('goQualities').addEventListener('click', () => { route.tab='qualities'; renderPatient(); });
+  }
+
+  function renderQualities(holder, p) {
+    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>1–2 A idéalement ; D = pas utile ou pas testable à ce stade.</p></div></div><div class="stack">${QUALITIES.map(q => qualityHTML(p,q)).join('')}</div>`;
+    holder.querySelectorAll('.status-btn').forEach(btn => btn.addEventListener('click', () => {
+      const qid = btn.dataset.quality, next = btn.dataset.status, old = p.status[qid] || 'D';
+      if (old === next) return;
+      p.status[qid] = next;
+      p.statusHistory.push({ id: uid('st'), qualityId: qid, from: old, to: next, date: nowISO() });
+      p.updatedAt = nowISO(); saveDB(); showToast(`${old} → ${next} enregistré`); renderPatient();
+    }));
+  }
+
+  function qualityHTML(p,q) {
+    const st = p.status[q.id] || 'D';
+    const hist = p.statusHistory.filter(h => h.qualityId === q.id).slice(-4);
+    const latestPivot = [...p.pivots].reverse().find(x => x.qualityId === q.id);
+    return `<section class="card quality-card">
+      <div class="quality-head"><div><h3>${esc(q.name)}</h3><div class="meta">Pivot : ${esc(q.pivot)}</div></div><span class="badge ${st.toLowerCase()}">${st} · ${statusLabel(st)}</span></div>
+      <div class="status-grid">${['A','B','C','D'].map(s => `<button type="button" class="status-btn ${st===s?'active':''}" data-quality="${q.id}" data-status="${s}">${s}</button>`).join('')}</div>
+      <div class="quality-foot"><div><strong>Sortie :</strong> ${esc(q.exit)}</div><div><strong>Dernier pivot :</strong> ${latestPivot ? esc(latestPivot.test)+' · '+esc(latestPivot.result)+' · '+fmtDate(latestPivot.date) : '—'}</div><div><strong>Historique :</strong> ${hist.length ? hist.map(h=>`${h.from}→${h.to}`).join(' · ') : 'statut initial D'}</div></div>
+    </section>`;
+  }
+
+  function renderSessions(holder, p) {
+    holder.innerHTML = `<div class="section-head"><div><h2>Suivi longitudinal</h2><p>Tendances cliniques ; les chiffres détaillés restent dans les pivots.</p></div><button id="addSession" class="btn primary" type="button">+ Séance</button></div>
+      ${p.sessions.length ? `<div class="table-wrap"><table><thead><tr><th>S</th><th>Douleur</th><th>Symptômes</th><th>Exposition</th><th>Tolérance</th><th>Observance</th><th>Décision</th></tr></thead><tbody>${[...p.sessions].reverse().map(sessionRowHTML).join('')}</tbody></table></div>` : '<div class="empty">Aucune séance enregistrée.</div>'}`;
+    document.getElementById('addSession').addEventListener('click', () => openSessionModal(p));
+  }
+
+  function renderPivots(holder, p) {
+    holder.innerHTML = `<div class="section-head"><div><h2>Tests pivots</h2><p>Un test doit répondre à une question clinique et pouvoir modifier la décision.</p></div><button id="addPivot" class="btn primary" type="button">+ Pivot</button></div>
+      ${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(pivotTimelineHTML).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}`;
+    document.getElementById('addPivot').addEventListener('click', () => openPivotModal(p));
+  }
+
+  function sessionSummaryHTML(s) {
+    return `<div class="stack small"><div><strong>Douleur :</strong> ${esc(s.pain)}</div><div><strong>Exposition :</strong> ${esc((s.exposure||[]).join(' · ') || '—')}</div><div><strong>Tolérance :</strong> ${esc((s.tolerance||[]).join(' · ') || '—')}</div><div><strong>Décision :</strong> ${esc(s.decision)}</div></div>`;
+  }
+  function pivotSummaryHTML(x) {
+    const q = QUALITIES.find(q => q.id === x.qualityId);
+    return `<div class="stack small"><div><strong>${esc(q?.name || '')}</strong></div><div>${esc(x.test)} : ${esc(x.result)}</div><div><strong>Question :</strong> ${esc(x.question || '—')}</div><div><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
+  }
+  function sessionRowHTML(s) {
+    return `<tr><td><strong>S${s.n}</strong><br><span class="small">${fmtDate(s.date)}</span></td><td>${esc(s.pain)}</td><td>${esc((s.symptoms||[]).join(', ')||'—')}</td><td>${esc((s.exposure||[]).join(', ')||'—')}</td><td>${esc((s.tolerance||[]).join(', ')||'—')}</td><td>${esc((s.adherence||[]).join(', ')||'—')}</td><td><strong>${esc(s.decision)}</strong>${s.note?`<br><span class="small">${esc(s.note)}</span>`:''}</td></tr>`;
+  }
+  function pivotTimelineHTML(x) {
+    const q = QUALITIES.find(q => q.id === x.qualityId);
+    return `<div class="timeline-item"><strong>${esc(q?.name || '')} · ${esc(x.test)}</strong><div>${esc(x.result)}</div><div class="small">S${x.sessionNumber || '—'} · ${fmtDate(x.date)} · ${esc(x.question || 'Question non renseignée')}</div><div class="small"><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
+  }
+
+  function openPatientModal(existing=null) {
+    const p = existing || {name:'', lesion:'Latérale', context:'', objective:'', targetFunction:'', constraints:''};
+    modalContent.innerHTML = `<form id="patientForm" class="modal-inner">
+      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">${existing?'Modifier':'Nouveau'} patient</div><h2>${existing?'Identité clinique':'Créer le suivi'}</h2></div><button class="close-btn" type="button" data-close>×</button></div>
+      <div class="notice">Conseil confidentialité : un prénom + initiale ou un identifiant suffit si tu ne veux pas stocker de données directement identifiantes.</div>
+      <div class="form-grid two">
+        <label class="label">Patient / identifiant<input name="name" class="input" required maxlength="80" value="${esc(p.name)}" /></label>
+        <label class="label">Profil lésionnel<select name="lesion" class="select">${LESIONS.map(x=>`<option ${p.lesion===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
+      </div>
+      <label class="label">Contexte / diagnostic<input name="context" class="input" maxlength="180" value="${esc(p.context)}" /></label>
+      <label class="label">Objectif principal<input name="objective" class="input" maxlength="180" value="${esc(p.objective)}" /></label>
+      <label class="label">Fonction cible<input name="targetFunction" class="input" maxlength="180" value="${esc(p.targetFunction)}" /></label>
+      <label class="label">Contraintes / notes<textarea name="constraints" class="textarea" maxlength="800">${esc(p.constraints)}</textarea></label>
+      <div class="btn-row"><button class="btn primary" type="submit">${existing?'Enregistrer':'Créer le patient'}</button>${existing?`<button class="btn ${existing.archived?'secondary':'danger'}" type="button" id="archiveBtn">${existing.archived?'Réactiver':'Archiver'}</button>`:''}</div>
+    </form>`;
+    openModal();
+    modalContent.querySelector('[data-close]').addEventListener('click', closeModal);
+    document.getElementById('patientForm').addEventListener('submit', e => {
+      e.preventDefault(); const fd = new FormData(e.currentTarget); const data = Object.fromEntries(fd.entries());
+      if (!data.name.trim()) return;
+      if (existing) { Object.assign(existing, data, {updatedAt:nowISO()}); }
+      else { const np = newPatientObject(data); db.patients.push(np); route={name:'patient',patientId:np.id,tab:'overview'}; }
+      saveDB(); closeModal(); showToast(existing?'Patient mis à jour':'Patient créé'); render();
+    });
+    if (existing) document.getElementById('archiveBtn').addEventListener('click', () => {
+      existing.archived = !existing.archived; existing.updatedAt=nowISO(); saveDB(); closeModal(); showToast(existing.archived?'Patient archivé':'Patient réactivé'); setRoute(existing.archived?'archives':'patient', existing.archived?null:existing.id);
+    });
+  }
+
+  function chipGroup(name, options) {
+    return `<div class="chips" data-chip-group="${name}">${options.map(o=>`<button type="button" class="chip" data-value="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
+  }
+  function wireChips(scope) {
+    scope.querySelectorAll('[data-chip-group]').forEach(group => group.addEventListener('click', e => {
+      const b = e.target.closest('.chip'); if (!b) return; b.classList.toggle('selected');
+    }));
+  }
+  function chipValues(scope, name) { return [...scope.querySelectorAll(`[data-chip-group="${name}"] .chip.selected`)].map(b=>b.dataset.value); }
+
+  function openSessionModal(p) {
+    const n = p.sessions.length + 1;
+    modalContent.innerHTML = `<form id="sessionForm" class="modal-inner">
+      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Séance S${n}</div><h2>Tendances cliniques</h2></div><button class="close-btn" type="button" data-close>×</button></div>
+      <div class="form-grid two"><label class="label">Douleur<select name="pain" class="select"><option>↓ mieux</option><option selected>= stable</option><option>↑ pire</option></select></label><label class="label">Décision<select name="decision" class="select"><option>Progresser</option><option selected>Maintenir</option><option>Régresser</option><option>Modifier</option><option>Retester</option></select></label></div>
+      <div><div class="label" style="margin-bottom:7px">Symptômes</div>${chipGroup('symptoms',SESSION_OPTIONS.symptoms)}</div>
+      <div><div class="label" style="margin-bottom:7px">Exposition</div>${chipGroup('exposure',SESSION_OPTIONS.exposure)}</div>
+      <div><div class="label" style="margin-bottom:7px">Tolérance</div>${chipGroup('tolerance',SESSION_OPTIONS.tolerance)}</div>
+      <div><div class="label" style="margin-bottom:7px">Observance</div>${chipGroup('adherence',SESSION_OPTIONS.adherence)}</div>
+      <label class="label">Note libre (optionnel)<textarea name="note" class="textarea" maxlength="500" placeholder="Uniquement si ça change la décision…"></textarea></label>
+      <button class="btn primary" type="submit">Enregistrer S${n}</button>
+    </form>`;
+    openModal(); wireChips(modalContent); modalContent.querySelector('[data-close]').addEventListener('click', closeModal);
+    document.getElementById('sessionForm').addEventListener('submit', e => {
+      e.preventDefault(); const fd = new FormData(e.currentTarget);
+      p.sessions.push({id:uid('ses'), n, date:nowISO(), pain:fd.get('pain'), decision:fd.get('decision'), symptoms:chipValues(e.currentTarget,'symptoms'), exposure:chipValues(e.currentTarget,'exposure'), tolerance:chipValues(e.currentTarget,'tolerance'), adherence:chipValues(e.currentTarget,'adherence'), note:String(fd.get('note')||'').trim()});
+      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast(`Séance S${n} enregistrée`); route.tab='sessions'; renderPatient();
+    });
+  }
+
+  function openPivotModal(p) {
+    const defaultSession = p.sessions.length || 1;
+    modalContent.innerHTML = `<form id="pivotForm" class="modal-inner">
+      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Test pivot</div><h2>Mesure qui change la décision</h2></div><button class="close-btn" type="button" data-close>×</button></div>
+      <div class="form-grid two"><label class="label">Qualité<select id="pivotQuality" name="qualityId" class="select">${QUALITIES.map(q=>`<option value="${q.id}">${esc(q.name)}</option>`).join('')}</select></label><label class="label">Séance<input name="sessionNumber" class="input" type="number" inputmode="numeric" min="1" max="999" value="${defaultSession}" /></label></div>
+      <label class="label">Test<select id="pivotTest" name="test" class="select"></select></label>
+      <label class="label">Résultat<input name="result" class="input" required maxlength="160" placeholder="Ex. WBLT 9,5 cm / LSI 92 %" /></label>
+      <label class="label">Question clinique<input name="question" class="input" maxlength="220" placeholder="Ex. La mobilité limite-t-elle encore le squat/course ?" /></label>
+      <label class="label">Décision / transition<input name="decision" class="input" maxlength="220" placeholder="Ex. Mobilité A → C ; arrêter le travail spécifique" /></label>
+      <button class="btn primary" type="submit">Enregistrer le pivot</button>
+    </form>`;
+    openModal();
+    const qSelect = document.getElementById('pivotQuality'), tSelect = document.getElementById('pivotTest');
+    const fill = () => { const q=QUALITIES.find(x=>x.id===qSelect.value); tSelect.innerHTML=q.tests.map(t=>`<option>${esc(t)}</option>`).join(''); };
+    fill(); qSelect.addEventListener('change',fill); modalContent.querySelector('[data-close]').addEventListener('click',closeModal);
+    document.getElementById('pivotForm').addEventListener('submit', e => {
+      e.preventDefault(); const fd = new FormData(e.currentTarget); const sn = Math.max(1, Math.min(999, Number(fd.get('sessionNumber')) || defaultSession));
+      p.pivots.push({id:uid('piv'), date:nowISO(), qualityId:fd.get('qualityId'), test:fd.get('test'), result:String(fd.get('result')||'').trim(), question:String(fd.get('question')||'').trim(), decision:String(fd.get('decision')||'').trim(), sessionNumber:sn});
+      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Test pivot enregistré'); route.tab='pivots'; renderPatient();
+    });
+  }
+
+  function openSettings() {
+    const stats = {active:db.patients.filter(p=>!p.archived).length, archived:db.patients.filter(p=>p.archived).length, sessions:db.patients.reduce((s,p)=>s+p.sessions.length,0)};
+    modalContent.innerHTML = `<div class="modal-inner">
+      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Données locales</div><h2>Sauvegarde & confidentialité</h2></div><button class="close-btn" type="button" data-close>×</button></div>
+      <div class="kpi-row"><div class="kpi"><strong>${stats.active}</strong><span>actifs</span></div><div class="kpi"><strong>${stats.archived}</strong><span>archives</span></div><div class="kpi"><strong>${stats.sessions}</strong><span>séances</span></div></div>
+      <div class="notice"><strong>Cette V1 ne transmet rien à un serveur.</strong> Les données sont conservées dans le stockage du navigateur de cet appareil. Elles ne sont pas chiffrées par l’application : utilise idéalement des identifiants/pseudonymes et protège l’iPad par code/Face ID.</div>
+      <div class="btn-row"><button id="exportBtn" class="btn primary" type="button">Exporter la sauvegarde JSON</button><label class="btn secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restaurer une sauvegarde<input id="importInput" type="file" accept="application/json,.json" hidden /></label></div>
+      <div class="small">Dernière modification : ${fmtDateTime(db.updatedAt)}</div>
+    </div>`;
+    openModal(); modalContent.querySelector('[data-close]').addEventListener('click',closeModal);
+    document.getElementById('exportBtn').addEventListener('click', exportBackup);
+    document.getElementById('importInput').addEventListener('change', importBackup);
+  }
+
+  function exportBackup() {
+    const payload = JSON.stringify(db, null, 2);
+    const blob = new Blob([payload], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`cockpit-clinique-backup-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); showToast('Sauvegarde exportée');
+  }
+  function importBackup(e) {
+    const file = e.target.files && e.target.files[0]; if (!file) return;
+    const reader = new FileReader(); reader.onload = () => {
+      try { const parsed=JSON.parse(reader.result); if (!parsed || !Array.isArray(parsed.patients)) throw new Error(); db=parsed; saveDB(); closeModal(); showToast('Sauvegarde restaurée'); setRoute('patients'); }
+      catch { showToast('Fichier de sauvegarde invalide'); }
+    }; reader.readAsText(file);
+  }
+
+  function openModal() { if (typeof modal.showModal === 'function') modal.showModal(); else modal.setAttribute('open',''); }
+  function closeModal() { if (typeof modal.close === 'function') modal.close(); else modal.removeAttribute('open'); }
+
+  document.querySelectorAll('.nav-btn[data-route]').forEach(b => b.addEventListener('click', () => setRoute(b.dataset.route)));
+  document.getElementById('newPatientBtn').addEventListener('click', () => openPatientModal());
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
+  backBtn.addEventListener('click', () => setRoute('patients'));
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  render();
+})();
+
+  </script>
+</body>
+</html>
