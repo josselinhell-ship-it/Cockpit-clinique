@@ -277,7 +277,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
 
   <nav class="bottom-nav" aria-label="Navigation principale">
     <button class="nav-btn active" data-route="patients" type="button">Actifs</button>
-    <button class="nav-btn" data-route="archives" type="button">Archives</button>
+    <button class="nav-btn" data-route="archives" type="button">Tous / Archives</button>
     <button class="nav-btn" id="newPatientBtn" type="button">+ Patient</button>
   </nav>
 
@@ -292,7 +292,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   'use strict';
 
   const STORAGE_KEY = 'cockpit_clinique_v1_data';
-  const CURRENT_VERSION = 1;
+  const CURRENT_VERSION = 2;
 
   const QUALITIES = [
     {
@@ -345,6 +345,16 @@ th, td { padding: 15px 14px; font-size: 14px; }
     adherence: ['Complète', 'Partielle', 'Faible', 'Non faite', 'Consignes respectées', 'Consignes partiellement respectées', 'Auto-charge excessive']
   };
 
+  // Add future cockpits here; the common engine reads only the case template.
+  const TEMPLATES = {
+    CHEVILLE: { id: 'CHEVILLE', name: 'Cheville / pied', qualities: QUALITIES,
+      subtypes: LESIONS, memos: LESION_MEMO, sessionOptions: SESSION_OPTIONS,
+      guidance: '1–2 A idéalement ; D = pas utile ou pas testable à ce stade.' }
+  };
+  function templateFor(c) { return TEMPLATES[c.templateId]; }
+  function qualitiesFor(c) { return templateFor(c).qualities; }
+  function casesFor(id) { return db.cases.filter(c => c.patientId === id); }
+
   const app = document.getElementById('app');
   const pageTitle = document.getElementById('pageTitle');
   const backBtn = document.getElementById('backBtn');
@@ -353,26 +363,80 @@ th, td { padding: 15px 14px; font-size: 14px; }
   const toast = document.getElementById('toast');
 
   let route = { name: 'patients', patientId: null, tab: 'overview' };
-  let db = loadDB();
+  let db;
+  try { db = loadDB(); }
+  catch (error) {
+    app.innerHTML = '<div class="notice">Lecture ou migration impossible. Les données locales sont conservées. Exportez une copie du stockage avant toute réparation.</div>';
+    document.getElementById('newPatientBtn').disabled = true;
+    document.getElementById('settingsBtn').disabled = true;
+    return;
+  }
 
   function defaultDB() {
-    return { version: CURRENT_VERSION, patients: [], updatedAt: new Date().toISOString() };
+    return { version: CURRENT_VERSION, patients: [], cases: [], updatedAt: nowISO() };
+  }
+
+  // Pure migration: keep a full legacy snapshot and move all clinical fields to cases.
+  function migrateDB(input) {
+    if (!input || !Array.isArray(input.patients)) throw new Error('Patients invalides');
+    if (input.version === 2) { validateDB(input); return input; }
+    if (input.version != null && input.version !== 1) throw new Error('Version non prise en charge');
+    const result = { ...input, version: 2, patients: [], cases: [], legacySnapshot: input };
+    input.patients.forEach((old, index) => {
+      if (!old || typeof old.name !== 'string') throw new Error('Patient invalide');
+      const id = old.id || `legacy_patient_${index}`;
+      result.patients.push({ id, name: old.name, createdAt: old.createdAt || nowISO(), updatedAt: old.updatedAt || nowISO(), note: '' });
+      const { name, archived, status, lesion, ...clinical } = old;
+      result.cases.push({ ...clinical, id: `legacy_case_${index}_${id}`, patientId: id,
+        templateId: 'CHEVILLE', title: 'Cheville / pied', side: '', subtype: lesion || 'Latérale',
+        context: old.context || '', objective: old.objective || '', targetFunction: old.targetFunction || '', constraints: old.constraints || '',
+        status: archived ? 'archived' : 'active', qualityStatus: status || {},
+        statusHistory: old.statusHistory || [], sessions: old.sessions || [], pivots: old.pivots || [],
+        createdAt: old.createdAt || nowISO(), updatedAt: old.updatedAt || nowISO() });
+    });
+    validateDB(result);
+    return result;
+  }
+
+  function validateDB(data) {
+    if (!Array.isArray(data.patients) || !Array.isArray(data.cases)) throw new Error('Structure invalide');
+    const ids = new Set();
+    data.patients.forEach(p => {
+      if (!p || typeof p.id !== 'string' || typeof p.name !== 'string' || ids.has(p.id)) throw new Error('Patient invalide');
+      ids.add(p.id);
+    });
+    const caseIds = new Set();
+    data.cases.forEach(c => {
+      if (!c || typeof c.id !== 'string' || caseIds.has(c.id) || !ids.has(c.patientId) ||
+          !TEMPLATES[c.templateId] || !['active','archived'].includes(c.status) ||
+          !c.qualityStatus || typeof c.qualityStatus !== 'object' || Array.isArray(c.qualityStatus) ||
+          ![c.statusHistory,c.sessions,c.pivots].every(Array.isArray)) throw new Error('Cas invalide');
+      if (Object.values(c.qualityStatus).some(value => !['A','B','C','D'].includes(value)) ||
+          [...c.statusHistory,...c.sessions,...c.pivots].some(item => !item || typeof item !== 'object') ||
+          c.sessions.some(session => ['symptoms','exposure','tolerance','adherence'].some(key => session[key] != null && !Array.isArray(session[key])))) throw new Error('Données longitudinales invalides');
+      caseIds.add(c.id);
+    });
+  }
+
+  function retainBackup(raw, reason) {
+    const key = `${STORAGE_KEY}_backup_${reason}_${uid('backup')}`;
+    localStorage.setItem(key, raw);
   }
 
   function loadDB() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return defaultDB();
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.patients)) return defaultDB();
-      return parsed;
-    } catch (e) {
-      return defaultDB();
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultDB();
+    const parsed = JSON.parse(raw);
+    const migrated = migrateDB(parsed);
+    if (parsed.version !== CURRENT_VERSION) {
+      retainBackup(raw, 'migration');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
     }
+    return migrated;
   }
 
   function saveDB() {
-    db.updatedAt = new Date().toISOString();
+    db.updatedAt = nowISO();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   }
 
@@ -403,76 +467,72 @@ th, td { padding: 15px 14px; font-size: 14px; }
   function statusLabel(status) { return ({A:'Prioritaire', B:'Déficitaire', C:'Suffisant', D:'Non pertinent / non testable'})[status] || ''; }
 
   function newPatientObject(data) {
-    const status = {};
-    QUALITIES.forEach(q => status[q.id] = 'D');
-    return {
-      id: uid('pat'),
-      name: data.name.trim(),
-      context: data.context.trim(),
-      objective: data.objective.trim(),
-      targetFunction: data.targetFunction.trim(),
-      constraints: data.constraints.trim(),
-      lesion: data.lesion,
-      archived: false,
-      createdAt: nowISO(), updatedAt: nowISO(),
-      status,
-      statusHistory: [],
-      sessions: [],
-      pivots: []
-    };
+    return { id: uid('pat'), name: data.name.trim(), note: data.note || '', createdAt: nowISO(), updatedAt: nowISO() };
   }
 
-  function setRoute(name, patientId=null, tab='overview') {
-    route = { name, patientId, tab };
+  function newCaseObject(patientId, data) {
+    return { ...data, id: uid('case'), patientId, status: 'active', createdAt: nowISO(), updatedAt: nowISO(),
+      qualityStatus: Object.fromEntries(TEMPLATES[data.templateId].qualities.map(q => [q.id, 'D'])),
+      statusHistory: [], sessions: [], pivots: [] };
+  }
+
+  function setRoute(name, patientId=null, tab='overview', caseId=null) {
+    route = { name, patientId, tab, caseId };
     render();
   }
-
+  function openCase(c) { setRoute('case', c.patientId, 'overview', c.id); }
+  function wireCards(holder, selector, action) {
+    holder.querySelectorAll(selector).forEach(el => {
+      el.addEventListener('click', () => action(el));
+      el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); action(el); } });
+    });
+  }
   function render() {
     document.querySelectorAll('.nav-btn[data-route]').forEach(b => b.classList.toggle('active', b.dataset.route === route.name));
-    backBtn.classList.toggle('hidden', route.name !== 'patient');
+    backBtn.classList.toggle('hidden', !['patient','case'].includes(route.name));
     if (route.name === 'patients') renderPatients(false);
     else if (route.name === 'archives') renderPatients(true);
-    else if (route.name === 'patient') renderPatient();
+    else if (route.name === 'patient') renderPatientProfile();
+    else if (route.name === 'case') renderCase();
   }
-
   function renderPatients(archived) {
-    pageTitle.textContent = archived ? 'Archives' : 'Patients actifs';
-    const list = db.patients.filter(p => p.archived === archived).sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    app.innerHTML = `
-      <div class="search"><input id="searchInput" class="input" type="search" placeholder="Rechercher un patient…" autocomplete="off" /></div>
-      <div class="section-head"><div><h2>${archived ? 'Patients archivés' : 'Suivis en cours'}</h2><p>${list.length} patient${list.length>1?'s':''}</p></div></div>
-      <div id="patientList" class="stack"></div>`;
+    pageTitle.textContent = archived ? 'Tous les patients' : 'Patients actifs';
+    const list = db.patients.filter(p => archived || casesFor(p.id).some(c => c.status === 'active'));
+    app.innerHTML = `<div class="search"><input id="searchInput" class="input" type="search" placeholder="Rechercher un patient…" /></div>
+      <div class="section-head"><div><h2>${archived ? 'Tous les patients · avec ou sans cas' : 'Suivis en cours'}</h2><p>${list.length} patient(s)</p></div></div><div id="patientList" class="stack"></div>`;
     const holder = document.getElementById('patientList');
-    const renderList = q => {
-      const query = q.trim().toLowerCase();
-      const filtered = list.filter(p => [p.name,p.lesion,p.objective,p.targetFunction].join(' ').toLowerCase().includes(query));
-      holder.innerHTML = filtered.length ? filtered.map(patientCardHTML).join('') : `<div class="empty">${query ? 'Aucun résultat.' : archived ? 'Aucune archive.' : 'Aucun patient actif. Ajoute le premier patient.'}</div>`;
-      holder.querySelectorAll('[data-patient]').forEach(el => el.addEventListener('click', () => setRoute('patient', el.dataset.patient)));
+    const renderList = query => {
+      holder.innerHTML = list.filter(p => [p.name,...casesFor(p.id).flatMap(c => [c.title,c.subtype,c.objective,c.targetFunction])].join(' ').toLowerCase().includes(query.toLowerCase())).map(p =>
+        `<article class="card patient-card" role="button" tabindex="0" data-patient="${esc(p.id)}"><h3>${esc(p.name)}</h3><div class="meta">${casesFor(p.id).filter(c => c.status === 'active').length} cas actif(s) · ${casesFor(p.id).filter(c => c.status === 'archived').length} cas archivé(s)</div></article>`).join('') || '<div class="empty">Aucun patient.</div>';
+      wireCards(holder, '[data-patient]', el => setRoute('patient',el.dataset.patient));
     };
-    renderList('');
-    document.getElementById('searchInput').addEventListener('input', e => renderList(e.target.value));
+    renderList(''); document.getElementById('searchInput').addEventListener('input',e => renderList(e.target.value));
+  }
+  function renderPatientProfile() {
+    const patient = getPatient(route.patientId);
+    if (!patient) return setRoute('patients');
+    pageTitle.textContent = patient.name;
+    app.innerHTML = `<section class="hero"><h2>${esc(patient.name)}</h2><div>${esc(patient.note || '')}</div><div class="hero-actions"><button id="editIdentityBtn" class="btn">Modifier le patient</button><button id="newCaseBtn" class="btn">+ Nouveau cas</button></div></section>
+      ${['active','archived'].map(status => `<div class="section-head"><h2>${status === 'active' ? 'Cas actifs' : 'Cas archivés'}</h2></div><div class="stack">${casesFor(patient.id).filter(c => c.status === status).map(caseCardHTML).join('') || '<div class="empty">Aucun cas.</div>'}</div>`).join('')}`;
+    document.getElementById('editIdentityBtn').onclick = () => openPatientModal(patient);
+    document.getElementById('newCaseBtn').onclick = () => openCaseModal();
+    wireCards(app, '[data-case]', el => openCase(db.cases.find(c => c.id === el.dataset.case)));
+  }
+  function caseCardHTML(c) {
+    return `<article class="card patient-card" role="button" tabindex="0" data-case="${esc(c.id)}"><h3>${esc(c.title)}</h3><div class="meta">${esc(templateFor(c).name)} · ${esc(c.side || 'Côté non renseigné')} · ${esc(c.subtype)}</div><div>${esc(c.objective)}</div><div class="badges">${qualitiesFor(c).map(q => `<span class="badge ${(c.qualityStatus[q.id] || 'D').toLowerCase()}">${esc(q.name)} · ${esc(c.qualityStatus[q.id] || 'D')}</span>`).join('')}</div><div class="meta">${c.sessions.length} séance(s) · ${c.pivots.length} test(s) pivot(s)</div></article>`;
   }
 
-  function patientCardHTML(p) {
-    const counts = {A:0,B:0,C:0,D:0};
-    QUALITIES.forEach(q => counts[p.status[q.id] || 'D']++);
-    return `<article class="card patient-card" data-patient="${p.id}" tabindex="0">
-      <div class="patient-top"><div><h3>${esc(p.name)}</h3><div class="meta">${esc(p.lesion)} · modifié ${fmtDate(p.updatedAt)}</div></div><span class="badge">${p.sessions.length} séance${p.sessions.length>1?'s':''}</span></div>
-      <div class="meta">${esc(p.objective || p.targetFunction || 'Objectif non renseigné')}</div>
-      <div class="badges"><span class="badge a">A ${counts.A}</span><span class="badge b">B ${counts.B}</span><span class="badge c">C ${counts.C}</span><span class="badge d">D ${counts.D}</span></div>
-    </article>`;
-  }
-
-  function renderPatient() {
-    const p = getPatient(route.patientId);
-    if (!p) { setRoute('patients'); return; }
-    pageTitle.textContent = p.name;
+  function renderCase() {
+    const p = db.cases.find(c => c.id === route.caseId && c.patientId === route.patientId);
+    if (!p) return setRoute('patient', route.patientId);
+    const patient = getPatient(p.patientId);
+    pageTitle.textContent = patient.name;
     const tabs = [
       ['overview','Synthèse'], ['qualities','Qualités'], ['sessions','Séances'], ['pivots','Tests pivots']
     ];
     app.innerHTML = `
       <section class="hero">
-        <div><div class="meta">Cheville / pied · ${esc(p.lesion)}</div><h2>${esc(p.name)}</h2></div>
+        <div><div class="meta">${esc(templateFor(p).name)} · ${esc(p.subtype)} · ${esc(p.side || 'Côté non renseigné')}</div><h2>${esc(p.title)}</h2><div>${esc(patient.name)}${p.status === 'archived' ? ' · Cas archivé' : ''}</div></div>
         <div>${esc(p.objective || 'Objectif non renseigné')}</div>
         <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button></div>
       </section>
@@ -480,10 +540,10 @@ th, td { padding: 15px 14px; font-size: 14px; }
         ${tabs.map(([id,label]) => `<button class="tab ${route.tab===id?'active':''}" data-tab="${id}" type="button">${label}</button>`).join('')}
       </div>
       <div id="patientTab"></div>`;
-    document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { route.tab = b.dataset.tab; renderPatient(); }));
+    document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { route.tab = b.dataset.tab; renderCase(); }));
     document.getElementById('quickSessionBtn').addEventListener('click', () => openSessionModal(p));
     document.getElementById('quickPivotBtn').addEventListener('click', () => openPivotModal(p));
-    document.getElementById('editPatientBtn').addEventListener('click', () => openPatientModal(p));
+    document.getElementById('editPatientBtn').addEventListener('click', () => openCaseModal(p));
     const tab = document.getElementById('patientTab');
     if (route.tab === 'overview') renderOverview(tab, p);
     if (route.tab === 'qualities') renderQualities(tab, p);
@@ -492,7 +552,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   }
 
   function renderOverview(holder, p) {
-    const counts = {A:0,B:0,C:0,D:0}; QUALITIES.forEach(q => counts[p.status[q.id]]++);
+    const counts = {A:0,B:0,C:0,D:0}; qualitiesFor(p).forEach(q => counts[p.qualityStatus[q.id] || 'D']++);
     const lastSession = p.sessions[p.sessions.length-1];
     const lastPivot = p.pivots[p.pivots.length-1];
     holder.innerHTML = `
@@ -502,32 +562,32 @@ th, td { padding: 15px 14px; font-size: 14px; }
           <section class="card"><div class="section-head"><div><h2>Identité clinique</h2><p>Le 20 % personnalisé</p></div></div>
             <div class="stack small"><div><strong>Contexte / diagnostic :</strong><br>${esc(p.context || '—')}</div><div><strong>Fonction cible :</strong><br>${esc(p.targetFunction || '—')}</div><div><strong>Contraintes / notes :</strong><br>${esc(p.constraints || '—')}</div></div>
           </section>
-          <section class="card"><div class="section-head"><div><h2>Repère lésionnel</h2><p>${esc(p.lesion)}</p></div></div><div class="notice">${esc(LESION_MEMO[p.lesion] || '')}</div></section>
+          <section class="card"><div class="section-head"><div><h2>Repère lésionnel</h2><p>${esc(p.subtype)}</p></div></div><div class="notice">${esc(templateFor(p).memos[p.subtype] || '')}</div></section>
         </div>
         <section class="card"><div class="section-head"><div><h2>Carte actuelle</h2><p>Dernier statut = statut courant</p></div><button id="goQualities" class="btn secondary" type="button">Ouvrir</button></div>
-          <div class="badges">${QUALITIES.map(q => `<span class="badge ${(p.status[q.id]||'D').toLowerCase()}">${esc(q.name)} · ${p.status[q.id]||'D'}</span>`).join('')}</div>
+          <div class="badges">${qualitiesFor(p).map(q => `<span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${esc(q.name)} · ${p.qualityStatus[q.id]||'D'}</span>`).join('')}</div>
         </section>
         <div class="grid-2">
           <section class="card"><div class="section-head"><div><h2>Dernière séance</h2><p>${lastSession ? 'S'+lastSession.n+' · '+fmtDate(lastSession.date) : 'Aucune'}</p></div></div>${lastSession ? sessionSummaryHTML(lastSession) : '<div class="empty">Pas encore de séance.</div>'}</section>
-          <section class="card"><div class="section-head"><div><h2>Dernier pivot</h2><p>${lastPivot ? fmtDate(lastPivot.date) : 'Aucun'}</p></div></div>${lastPivot ? pivotSummaryHTML(lastPivot) : '<div class="empty">Pas encore de test pivot.</div>'}</section>
+          <section class="card"><div class="section-head"><div><h2>Dernier pivot</h2><p>${lastPivot ? fmtDate(lastPivot.date) : 'Aucun'}</p></div></div>${lastPivot ? pivotSummaryHTML(lastPivot, p) : '<div class="empty">Pas encore de test pivot.</div>'}</section>
         </div>
       </div>`;
-    document.getElementById('goQualities').addEventListener('click', () => { route.tab='qualities'; renderPatient(); });
+    document.getElementById('goQualities').addEventListener('click', () => { route.tab='qualities'; renderCase(); });
   }
 
   function renderQualities(holder, p) {
-    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>1–2 A idéalement ; D = pas utile ou pas testable à ce stade.</p></div></div><div class="stack">${QUALITIES.map(q => qualityHTML(p,q)).join('')}</div>`;
+    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>${esc(templateFor(p).guidance || '')}</p></div></div><div class="stack">${qualitiesFor(p).map(q => qualityHTML(p,q)).join('')}</div>`;
     holder.querySelectorAll('.status-btn').forEach(btn => btn.addEventListener('click', () => {
-      const qid = btn.dataset.quality, next = btn.dataset.status, old = p.status[qid] || 'D';
+      const qid = btn.dataset.quality, next = btn.dataset.status, old = p.qualityStatus[qid] || 'D';
       if (old === next) return;
-      p.status[qid] = next;
+      p.qualityStatus[qid] = next;
       p.statusHistory.push({ id: uid('st'), qualityId: qid, from: old, to: next, date: nowISO() });
-      p.updatedAt = nowISO(); saveDB(); showToast(`${old} → ${next} enregistré`); renderPatient();
+      p.updatedAt = nowISO(); saveDB(); showToast(`${old} → ${next} enregistré`); renderCase();
     }));
   }
 
   function qualityHTML(p,q) {
-    const st = p.status[q.id] || 'D';
+    const st = p.qualityStatus[q.id] || 'D';
     const hist = p.statusHistory.filter(h => h.qualityId === q.id).slice(-4);
     const latestPivot = [...p.pivots].reverse().find(x => x.qualityId === q.id);
     return `<section class="card quality-card">
@@ -545,52 +605,69 @@ th, td { padding: 15px 14px; font-size: 14px; }
 
   function renderPivots(holder, p) {
     holder.innerHTML = `<div class="section-head"><div><h2>Tests pivots</h2><p>Un test doit répondre à une question clinique et pouvoir modifier la décision.</p></div><button id="addPivot" class="btn primary" type="button">+ Pivot</button></div>
-      ${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(pivotTimelineHTML).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}`;
+      ${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(x => pivotTimelineHTML(x, p)).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}`;
     document.getElementById('addPivot').addEventListener('click', () => openPivotModal(p));
   }
 
   function sessionSummaryHTML(s) {
     return `<div class="stack small"><div><strong>Douleur :</strong> ${esc(s.pain)}</div><div><strong>Exposition :</strong> ${esc((s.exposure||[]).join(' · ') || '—')}</div><div><strong>Tolérance :</strong> ${esc((s.tolerance||[]).join(' · ') || '—')}</div><div><strong>Décision :</strong> ${esc(s.decision)}</div></div>`;
   }
-  function pivotSummaryHTML(x) {
-    const q = QUALITIES.find(q => q.id === x.qualityId);
+  function pivotSummaryHTML(x, p) {
+    const q = qualitiesFor(p).find(q => q.id === x.qualityId);
     return `<div class="stack small"><div><strong>${esc(q?.name || '')}</strong></div><div>${esc(x.test)} : ${esc(x.result)}</div><div><strong>Question :</strong> ${esc(x.question || '—')}</div><div><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
   }
   function sessionRowHTML(s) {
     return `<tr><td><strong>S${s.n}</strong><br><span class="small">${fmtDate(s.date)}</span></td><td>${esc(s.pain)}</td><td>${esc((s.symptoms||[]).join(', ')||'—')}</td><td>${esc((s.exposure||[]).join(', ')||'—')}</td><td>${esc((s.tolerance||[]).join(', ')||'—')}</td><td>${esc((s.adherence||[]).join(', ')||'—')}</td><td><strong>${esc(s.decision)}</strong>${s.note?`<br><span class="small">${esc(s.note)}</span>`:''}</td></tr>`;
   }
-  function pivotTimelineHTML(x) {
-    const q = QUALITIES.find(q => q.id === x.qualityId);
+  function pivotTimelineHTML(x, p) {
+    const q = qualitiesFor(p).find(q => q.id === x.qualityId);
     return `<div class="timeline-item"><strong>${esc(q?.name || '')} · ${esc(x.test)}</strong><div>${esc(x.result)}</div><div class="small">S${x.sessionNumber || '—'} · ${fmtDate(x.date)} · ${esc(x.question || 'Question non renseignée')}</div><div class="small"><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
   }
 
   function openPatientModal(existing=null) {
-    const p = existing || {name:'', lesion:'Latérale', context:'', objective:'', targetFunction:'', constraints:''};
-    modalContent.innerHTML = `<form id="patientForm" class="modal-inner">
-      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">${existing?'Modifier':'Nouveau'} patient</div><h2>${existing?'Identité clinique':'Créer le suivi'}</h2></div><button class="close-btn" type="button" data-close>×</button></div>
+    const p = existing || {name:'', note:''};
+    modalContent.innerHTML = `<form id="patientForm" class="modal-inner"><div class="modal-head"><h2>${existing ? 'Modifier le patient' : 'Créer un patient'}</h2><button class="close-btn" type="button" data-close>×</button></div>
       <div class="notice">Conseil confidentialité : un prénom + initiale ou un identifiant suffit si tu ne veux pas stocker de données directement identifiantes.</div>
-      <div class="form-grid two">
-        <label class="label">Patient / identifiant<input name="name" class="input" required maxlength="80" value="${esc(p.name)}" /></label>
-        <label class="label">Profil lésionnel<select name="lesion" class="select">${LESIONS.map(x=>`<option ${p.lesion===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
-      </div>
-      <label class="label">Contexte / diagnostic<input name="context" class="input" maxlength="180" value="${esc(p.context)}" /></label>
-      <label class="label">Objectif principal<input name="objective" class="input" maxlength="180" value="${esc(p.objective)}" /></label>
-      <label class="label">Fonction cible<input name="targetFunction" class="input" maxlength="180" value="${esc(p.targetFunction)}" /></label>
-      <label class="label">Contraintes / notes<textarea name="constraints" class="textarea" maxlength="800">${esc(p.constraints)}</textarea></label>
-      <div class="btn-row"><button class="btn primary" type="submit">${existing?'Enregistrer':'Créer le patient'}</button>${existing?`<button class="btn ${existing.archived?'secondary':'danger'}" type="button" id="archiveBtn">${existing.archived?'Réactiver':'Archiver'}</button>`:''}</div>
-    </form>`;
-    openModal();
-    modalContent.querySelector('[data-close]').addEventListener('click', closeModal);
-    document.getElementById('patientForm').addEventListener('submit', e => {
-      e.preventDefault(); const fd = new FormData(e.currentTarget); const data = Object.fromEntries(fd.entries());
+      <label class="label">Patient / identifiant<input name="name" class="input" required maxlength="80" value="${esc(p.name)}" /></label>
+      <label class="label">Note générale<textarea name="note" class="textarea" maxlength="800">${esc(p.note || '')}</textarea></label>
+      <button class="btn primary" type="submit">${existing ? 'Enregistrer' : 'Créer le patient'}</button></form>`;
+    openModal(); modalContent.querySelector('[data-close]').onclick = closeModal;
+    document.getElementById('patientForm').onsubmit = e => {
+      e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget));
       if (!data.name.trim()) return;
-      if (existing) { Object.assign(existing, data, {updatedAt:nowISO()}); }
-      else { const np = newPatientObject(data); db.patients.push(np); route={name:'patient',patientId:np.id,tab:'overview'}; }
-      saveDB(); closeModal(); showToast(existing?'Patient mis à jour':'Patient créé'); render();
-    });
-    if (existing) document.getElementById('archiveBtn').addEventListener('click', () => {
-      existing.archived = !existing.archived; existing.updatedAt=nowISO(); saveDB(); closeModal(); showToast(existing.archived?'Patient archivé':'Patient réactivé'); setRoute(existing.archived?'archives':'patient', existing.archived?null:existing.id);
-    });
+      const patient = existing || newPatientObject(data);
+      if (existing) Object.assign(patient, {name:data.name.trim(),note:data.note,updatedAt:nowISO()});
+      else db.patients.push(patient);
+      saveDB(); closeModal(); setRoute('patient',patient.id);
+    };
+  }
+  function openCaseModal(existing=null) {
+    const c = existing || {templateId:'CHEVILLE',title:'',side:'',subtype:'',context:'',objective:'',targetFunction:'',constraints:''};
+    modalContent.innerHTML = `<form id="caseForm" class="modal-inner"><div class="modal-head"><h2>${existing ? 'Modifier le cas' : 'Nouveau cas'}</h2><button class="close-btn" type="button" data-close>×</button></div>
+      <label class="label">Cockpit<select name="templateId" class="select" ${existing ? 'disabled' : ''}>${Object.values(TEMPLATES).map(t => `<option value="${t.id}" ${t.id === c.templateId ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
+      <label class="label">Titre du cas<input name="title" class="input" maxlength="160" value="${esc(c.title)}" placeholder="Ex. Entorse cheville droite" /></label>
+      <label class="label">Côté<select name="side" class="select">${['','Droit','Gauche','Bilatéral','Non précisé'].map(x => `<option value="${x}" ${x === c.side ? 'selected' : ''}>${x || 'Choisir…'}</option>`).join('')}</select></label>
+      <label class="label">Profil lésionnel<select name="subtype" class="select"></select></label>
+      ${[['context','Contexte / diagnostic'],['objective','Objectif principal'],['targetFunction','Fonction cible']].map(([key,label]) => `<label class="label">${label}<input name="${key}" class="input" maxlength="180" value="${esc(c[key])}" /></label>`).join('')}
+      <label class="label">Contraintes / notes<textarea name="constraints" class="textarea" maxlength="800">${esc(c.constraints)}</textarea></label>
+      <div class="btn-row"><button class="btn primary" type="submit">${existing ? 'Enregistrer' : 'Créer le cas'}</button>${existing ? `<button id="archiveCaseBtn" class="btn danger" type="button">${c.status === 'archived' ? 'Réactiver le cas' : 'Archiver le cas'}</button>` : ''}</div></form>`;
+    const form = document.getElementById('caseForm');
+    const fill = () => { const t = TEMPLATES[form.elements.templateId.value]; form.elements.subtype.innerHTML = t.subtypes.map(x => `<option ${x === c.subtype ? 'selected' : ''}>${esc(x)}</option>`).join(''); };
+    fill(); form.elements.templateId.onchange = fill;
+    openModal(); modalContent.querySelector('[data-close]').onclick = closeModal;
+    form.onsubmit = e => {
+      e.preventDefault(); const data = Object.fromEntries(new FormData(form));
+      data.templateId = existing ? existing.templateId : data.templateId;
+      data.title = data.title.trim() || `${TEMPLATES[data.templateId].name}${data.side ? ' · '+data.side : ''}`;
+      const episode = existing || newCaseObject(route.patientId, data);
+      if (existing) Object.assign(episode,data,{updatedAt:nowISO()}); else db.cases.push(episode);
+      getPatient(episode.patientId).updatedAt = nowISO();
+      saveDB(); closeModal(); openCase(episode);
+    };
+    if (existing) document.getElementById('archiveCaseBtn').onclick = () => {
+      c.status = c.status === 'active' ? 'archived' : 'active'; c.updatedAt = nowISO();
+      saveDB(); closeModal(); setRoute('patient',c.patientId);
+    };
   }
 
   function chipGroup(name, options) {
@@ -608,10 +685,10 @@ th, td { padding: 15px 14px; font-size: 14px; }
     modalContent.innerHTML = `<form id="sessionForm" class="modal-inner">
       <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Séance S${n}</div><h2>Tendances cliniques</h2></div><button class="close-btn" type="button" data-close>×</button></div>
       <div class="form-grid two"><label class="label">Douleur<select name="pain" class="select"><option>↓ mieux</option><option selected>= stable</option><option>↑ pire</option></select></label><label class="label">Décision<select name="decision" class="select"><option>Progresser</option><option selected>Maintenir</option><option>Régresser</option><option>Modifier</option><option>Retester</option></select></label></div>
-      <div><div class="label" style="margin-bottom:7px">Symptômes</div>${chipGroup('symptoms',SESSION_OPTIONS.symptoms)}</div>
-      <div><div class="label" style="margin-bottom:7px">Exposition</div>${chipGroup('exposure',SESSION_OPTIONS.exposure)}</div>
-      <div><div class="label" style="margin-bottom:7px">Tolérance</div>${chipGroup('tolerance',SESSION_OPTIONS.tolerance)}</div>
-      <div><div class="label" style="margin-bottom:7px">Observance</div>${chipGroup('adherence',SESSION_OPTIONS.adherence)}</div>
+      <div><div class="label" style="margin-bottom:7px">Symptômes</div>${chipGroup('symptoms',templateFor(p).sessionOptions.symptoms)}</div>
+      <div><div class="label" style="margin-bottom:7px">Exposition</div>${chipGroup('exposure',templateFor(p).sessionOptions.exposure)}</div>
+      <div><div class="label" style="margin-bottom:7px">Tolérance</div>${chipGroup('tolerance',templateFor(p).sessionOptions.tolerance)}</div>
+      <div><div class="label" style="margin-bottom:7px">Observance</div>${chipGroup('adherence',templateFor(p).sessionOptions.adherence)}</div>
       <label class="label">Note libre (optionnel)<textarea name="note" class="textarea" maxlength="500" placeholder="Uniquement si ça change la décision…"></textarea></label>
       <button class="btn primary" type="submit">Enregistrer S${n}</button>
     </form>`;
@@ -619,7 +696,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     document.getElementById('sessionForm').addEventListener('submit', e => {
       e.preventDefault(); const fd = new FormData(e.currentTarget);
       p.sessions.push({id:uid('ses'), n, date:nowISO(), pain:fd.get('pain'), decision:fd.get('decision'), symptoms:chipValues(e.currentTarget,'symptoms'), exposure:chipValues(e.currentTarget,'exposure'), tolerance:chipValues(e.currentTarget,'tolerance'), adherence:chipValues(e.currentTarget,'adherence'), note:String(fd.get('note')||'').trim()});
-      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast(`Séance S${n} enregistrée`); route.tab='sessions'; renderPatient();
+      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast(`Séance S${n} enregistrée`); route.tab='sessions'; renderCase();
     });
   }
 
@@ -627,7 +704,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     const defaultSession = p.sessions.length || 1;
     modalContent.innerHTML = `<form id="pivotForm" class="modal-inner">
       <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Test pivot</div><h2>Mesure qui change la décision</h2></div><button class="close-btn" type="button" data-close>×</button></div>
-      <div class="form-grid two"><label class="label">Qualité<select id="pivotQuality" name="qualityId" class="select">${QUALITIES.map(q=>`<option value="${q.id}">${esc(q.name)}</option>`).join('')}</select></label><label class="label">Séance<input name="sessionNumber" class="input" type="number" inputmode="numeric" min="1" max="999" value="${defaultSession}" /></label></div>
+      <div class="form-grid two"><label class="label">Qualité<select id="pivotQuality" name="qualityId" class="select">${qualitiesFor(p).map(q=>`<option value="${q.id}">${esc(q.name)}</option>`).join('')}</select></label><label class="label">Séance<input name="sessionNumber" class="input" type="number" inputmode="numeric" min="1" max="999" value="${defaultSession}" /></label></div>
       <label class="label">Test<select id="pivotTest" name="test" class="select"></select></label>
       <label class="label">Résultat<input name="result" class="input" required maxlength="160" placeholder="Ex. WBLT 9,5 cm / LSI 92 %" /></label>
       <label class="label">Question clinique<input name="question" class="input" maxlength="220" placeholder="Ex. La mobilité limite-t-elle encore le squat/course ?" /></label>
@@ -636,20 +713,20 @@ th, td { padding: 15px 14px; font-size: 14px; }
     </form>`;
     openModal();
     const qSelect = document.getElementById('pivotQuality'), tSelect = document.getElementById('pivotTest');
-    const fill = () => { const q=QUALITIES.find(x=>x.id===qSelect.value); tSelect.innerHTML=q.tests.map(t=>`<option>${esc(t)}</option>`).join(''); };
+    const fill = () => { const q=qualitiesFor(p).find(x=>x.id===qSelect.value); tSelect.innerHTML=q.tests.map(t=>`<option>${esc(t)}</option>`).join(''); };
     fill(); qSelect.addEventListener('change',fill); modalContent.querySelector('[data-close]').addEventListener('click',closeModal);
     document.getElementById('pivotForm').addEventListener('submit', e => {
       e.preventDefault(); const fd = new FormData(e.currentTarget); const sn = Math.max(1, Math.min(999, Number(fd.get('sessionNumber')) || defaultSession));
       p.pivots.push({id:uid('piv'), date:nowISO(), qualityId:fd.get('qualityId'), test:fd.get('test'), result:String(fd.get('result')||'').trim(), question:String(fd.get('question')||'').trim(), decision:String(fd.get('decision')||'').trim(), sessionNumber:sn});
-      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Test pivot enregistré'); route.tab='pivots'; renderPatient();
+      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Test pivot enregistré'); route.tab='pivots'; renderCase();
     });
   }
 
   function openSettings() {
-    const stats = {active:db.patients.filter(p=>!p.archived).length, archived:db.patients.filter(p=>p.archived).length, sessions:db.patients.reduce((s,p)=>s+p.sessions.length,0)};
+    const stats = {active:db.cases.filter(c=>c.status === 'active').length, archived:db.cases.filter(c=>c.status === 'archived').length, sessions:db.cases.reduce((s,c)=>s+c.sessions.length,0)};
     modalContent.innerHTML = `<div class="modal-inner">
       <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Données locales</div><h2>Sauvegarde & confidentialité</h2></div><button class="close-btn" type="button" data-close>×</button></div>
-      <div class="kpi-row"><div class="kpi"><strong>${stats.active}</strong><span>actifs</span></div><div class="kpi"><strong>${stats.archived}</strong><span>archives</span></div><div class="kpi"><strong>${stats.sessions}</strong><span>séances</span></div></div>
+      <div class="kpi-row"><div class="kpi"><strong>${stats.active}</strong><span>cas actifs</span></div><div class="kpi"><strong>${stats.archived}</strong><span>cas archivés</span></div><div class="kpi"><strong>${stats.sessions}</strong><span>séances</span></div></div>
       <div class="notice"><strong>Cette V1 ne transmet rien à un serveur.</strong> Les données sont conservées dans le stockage du navigateur de cet appareil. Elles ne sont pas chiffrées par l’application : utilise idéalement des identifiants/pseudonymes et protège l’iPad par code/Face ID.</div>
       <div class="btn-row"><button id="exportBtn" class="btn primary" type="button">Exporter la sauvegarde JSON</button><label class="btn secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restaurer une sauvegarde<input id="importInput" type="file" accept="application/json,.json" hidden /></label></div>
       <div class="small">Dernière modification : ${fmtDateTime(db.updatedAt)}</div>
@@ -668,7 +745,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   function importBackup(e) {
     const file = e.target.files && e.target.files[0]; if (!file) return;
     const reader = new FileReader(); reader.onload = () => {
-      try { const parsed=JSON.parse(reader.result); if (!parsed || !Array.isArray(parsed.patients)) throw new Error(); db=parsed; saveDB(); closeModal(); showToast('Sauvegarde restaurée'); setRoute('patients'); }
+      try { const restored=migrateDB(JSON.parse(reader.result)); if (!confirm('Remplacer les données actuelles par cette sauvegarde ? Une copie locale des données actuelles sera conservée.')) return; retainBackup(JSON.stringify(db), 'import'); localStorage.setItem(STORAGE_KEY, JSON.stringify(restored)); db=restored; closeModal(); showToast('Sauvegarde restaurée'); setRoute('patients'); }
       catch { showToast('Fichier de sauvegarde invalide'); }
     }; reader.readAsText(file);
   }
@@ -679,7 +756,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   document.querySelectorAll('.nav-btn[data-route]').forEach(b => b.addEventListener('click', () => setRoute(b.dataset.route)));
   document.getElementById('newPatientBtn').addEventListener('click', () => openPatientModal());
   document.getElementById('settingsBtn').addEventListener('click', openSettings);
-  backBtn.addEventListener('click', () => setRoute('patients'));
+  backBtn.addEventListener('click', () => route.name === 'case' ? setRoute('patient',route.patientId) : setRoute('patients'));
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
