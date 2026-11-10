@@ -31,3 +31,7 @@ L’export JSON contient la base v2 entière. La restauration accepte v1 et v2, 
 Avec Node, Playwright et Chromium disponibles dans l’environnement de développement, démarrer le serveur ci-dessus puis exécuter `node tests/smoke.cjs`. `CHROMIUM_PATH` peut indiquer un autre exécutable Chromium.
 
 Le test utilise un contexte navigateur jetable et des patients fictifs : création patient/cas, isolation de deux épisodes, A/B/C/D et historique, séance, pivot, fermeture/réouverture, archivage, export et restauration v1/v2, migration idempotente, conservation des champs historiques, rejet des imports invalides et largeurs tactiles 390/820/1180 px.
+
+Les séances et pivots disposent d’actions Modifier / Supprimer dans leurs historiques. Les éditions conservent leurs identifiants et dates ; les séances conservent également leur numéro. La suppression nécessite une confirmation et ne renumérote pas l’historique. L’archivage confirmé est accessible directement dans le bloc d’identification du cas et reste disponible dans Modifier.
+
+Test complémentaire : `node tests/longitudinal.cjs`. Il vérifie les formulaires préremplis, les corrections sans doublons, les suppressions ciblées, les confirmations annulées/acceptées, l’archivage direct, l’isolation des cas et la persistance après réouverture. Pour utiliser un autre port, définir `APP_URL` pour les deux scripts de test.

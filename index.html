@@ -211,6 +211,7 @@ button { cursor: pointer; }
 .hero h2 { font-size: 28px; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .hero .meta { color: #c4d4df; }
 .hero-actions { gap: 12px; }
+.hero-actions .case-archive { background: transparent; font-weight: 500; }
 .btn { min-height: 50px; padding: 12px 18px; font-weight: 700; }
 .tabs { gap: 10px; padding: 5px 4px 8px; }
 .tab { min-height: 48px; padding: 10px 18px; font-weight: 700; }
@@ -534,7 +535,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
       <section class="hero">
         <div><div class="meta">${esc(templateFor(p).name)} · ${esc(p.subtype)} · ${esc(p.side || 'Côté non renseigné')}</div><h2>${esc(p.title)}</h2><div>${esc(patient.name)}${p.status === 'archived' ? ' · Cas archivé' : ''}</div></div>
         <div>${esc(p.objective || 'Objectif non renseigné')}</div>
-        <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button></div>
+        <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button>${p.status === 'active' ? '<button class="btn case-archive" id="archiveDirectBtn" type="button">Archiver le cas</button>' : ''}</div>
       </section>
       <div class="tabs" style="margin:14px 0">
         ${tabs.map(([id,label]) => `<button class="tab ${route.tab===id?'active':''}" data-tab="${id}" type="button">${label}</button>`).join('')}
@@ -544,6 +545,8 @@ th, td { padding: 15px 14px; font-size: 14px; }
     document.getElementById('quickSessionBtn').addEventListener('click', () => openSessionModal(p));
     document.getElementById('quickPivotBtn').addEventListener('click', () => openPivotModal(p));
     document.getElementById('editPatientBtn').addEventListener('click', () => openCaseModal(p));
+    const archiveButton = document.getElementById('archiveDirectBtn');
+    if (archiveButton) archiveButton.onclick = () => archiveCase(p);
     const tab = document.getElementById('patientTab');
     if (route.tab === 'overview') renderOverview(tab, p);
     if (route.tab === 'qualities') renderQualities(tab, p);
@@ -597,15 +600,40 @@ th, td { padding: 15px 14px; font-size: 14px; }
     </section>`;
   }
 
+  function archiveCase(c) {
+    if (!confirm('Archiver ce cas ?')) return;
+    c.status = 'archived'; c.updatedAt = nowISO();
+    saveDB(); closeModal(); setRoute('patient', c.patientId);
+  }
+  function recordActions(kind, id) {
+    return `<div class="btn-row"><button class="btn secondary" type="button" data-edit-${kind}="${esc(id)}">Modifier</button><button class="btn danger" type="button" data-delete-${kind}="${esc(id)}">Supprimer</button></div>`;
+  }
+  function wireRecordActions(holder, p, kind) {
+    const records = kind === 'session' ? p.sessions : p.pivots;
+    holder.querySelectorAll(`[data-edit-${kind}]`).forEach(button => button.onclick = () => {
+      const record = records.find(item => item.id === button.getAttribute(`data-edit-${kind}`));
+      if (record) (kind === 'session' ? openSessionModal : openPivotModal)(p, record);
+    });
+    holder.querySelectorAll(`[data-delete-${kind}]`).forEach(button => button.onclick = () => {
+      const index = records.findIndex(item => item.id === button.getAttribute(`data-delete-${kind}`));
+      if (index < 0 || !confirm(kind === 'session' ? `Supprimer définitivement la séance S${records[index].n} ?` : 'Supprimer définitivement ce test pivot ?')) return;
+      records.splice(index, 1); p.updatedAt = nowISO(); saveDB(); renderCase();
+    });
+  }
+  function lastSessionNumber(p) {
+    return Math.max(0, ...p.sessions.map(s => Number(s.n) || 0), ...p.pivots.map(x => Number(x.sessionNumber) || 0));
+  }
   function renderSessions(holder, p) {
     holder.innerHTML = `<div class="section-head"><div><h2>Suivi longitudinal</h2><p>Tendances cliniques ; les chiffres détaillés restent dans les pivots.</p></div><button id="addSession" class="btn primary" type="button">+ Séance</button></div>
-      ${p.sessions.length ? `<div class="table-wrap"><table><thead><tr><th>S</th><th>Douleur</th><th>Symptômes</th><th>Exposition</th><th>Tolérance</th><th>Observance</th><th>Décision</th></tr></thead><tbody>${[...p.sessions].reverse().map(sessionRowHTML).join('')}</tbody></table></div>` : '<div class="empty">Aucune séance enregistrée.</div>'}`;
+      ${p.sessions.length ? `<div class="table-wrap"><table><thead><tr><th>S</th><th>Douleur</th><th>Symptômes</th><th>Exposition</th><th>Tolérance</th><th>Observance</th><th>Décision</th><th>Actions</th></tr></thead><tbody>${[...p.sessions].reverse().map(sessionRowHTML).join('')}</tbody></table></div>` : '<div class="empty">Aucune séance enregistrée.</div>'}`;
+    wireRecordActions(holder, p, 'session');
     document.getElementById('addSession').addEventListener('click', () => openSessionModal(p));
   }
 
   function renderPivots(holder, p) {
     holder.innerHTML = `<div class="section-head"><div><h2>Tests pivots</h2><p>Un test doit répondre à une question clinique et pouvoir modifier la décision.</p></div><button id="addPivot" class="btn primary" type="button">+ Pivot</button></div>
       ${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(x => pivotTimelineHTML(x, p)).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}`;
+    wireRecordActions(holder, p, 'pivot');
     document.getElementById('addPivot').addEventListener('click', () => openPivotModal(p));
   }
 
@@ -617,11 +645,11 @@ th, td { padding: 15px 14px; font-size: 14px; }
     return `<div class="stack small"><div><strong>${esc(q?.name || '')}</strong></div><div>${esc(x.test)} : ${esc(x.result)}</div><div><strong>Question :</strong> ${esc(x.question || '—')}</div><div><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
   }
   function sessionRowHTML(s) {
-    return `<tr><td><strong>S${s.n}</strong><br><span class="small">${fmtDate(s.date)}</span></td><td>${esc(s.pain)}</td><td>${esc((s.symptoms||[]).join(', ')||'—')}</td><td>${esc((s.exposure||[]).join(', ')||'—')}</td><td>${esc((s.tolerance||[]).join(', ')||'—')}</td><td>${esc((s.adherence||[]).join(', ')||'—')}</td><td><strong>${esc(s.decision)}</strong>${s.note?`<br><span class="small">${esc(s.note)}</span>`:''}</td></tr>`;
+    return `<tr><td><strong>S${s.n}</strong><br><span class="small">${fmtDate(s.date)}</span></td><td>${esc(s.pain)}</td><td>${esc((s.symptoms||[]).join(', ')||'—')}</td><td>${esc((s.exposure||[]).join(', ')||'—')}</td><td>${esc((s.tolerance||[]).join(', ')||'—')}</td><td>${esc((s.adherence||[]).join(', ')||'—')}</td><td><strong>${esc(s.decision)}</strong>${s.note?`<br><span class="small">${esc(s.note)}</span>`:''}</td><td>${recordActions('session',s.id)}</td></tr>`;
   }
   function pivotTimelineHTML(x, p) {
     const q = qualitiesFor(p).find(q => q.id === x.qualityId);
-    return `<div class="timeline-item"><strong>${esc(q?.name || '')} · ${esc(x.test)}</strong><div>${esc(x.result)}</div><div class="small">S${x.sessionNumber || '—'} · ${fmtDate(x.date)} · ${esc(x.question || 'Question non renseignée')}</div><div class="small"><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
+    return `<div class="timeline-item"><strong>${esc(q?.name || '')} · ${esc(x.test)}</strong><div>${esc(x.result)}</div><div class="small">S${x.sessionNumber || '—'} · ${fmtDate(x.date)} · ${esc(x.question || 'Question non renseignée')}</div><div class="small"><strong>Décision :</strong> ${esc(x.decision || '—')}</div>${recordActions('pivot',x.id)}</div>`;
   }
 
   function openPatientModal(existing=null) {
@@ -665,7 +693,8 @@ th, td { padding: 15px 14px; font-size: 14px; }
       saveDB(); closeModal(); openCase(episode);
     };
     if (existing) document.getElementById('archiveCaseBtn').onclick = () => {
-      c.status = c.status === 'active' ? 'archived' : 'active'; c.updatedAt = nowISO();
+      if (c.status === 'active') return archiveCase(c);
+      c.status = 'active'; c.updatedAt = nowISO();
       saveDB(); closeModal(); setRoute('patient',c.patientId);
     };
   }
@@ -680,8 +709,8 @@ th, td { padding: 15px 14px; font-size: 14px; }
   }
   function chipValues(scope, name) { return [...scope.querySelectorAll(`[data-chip-group="${name}"] .chip.selected`)].map(b=>b.dataset.value); }
 
-  function openSessionModal(p) {
-    const n = p.sessions.length + 1;
+  function openSessionModal(p, existing=null) {
+    const n = existing ? existing.n : lastSessionNumber(p) + 1;
     modalContent.innerHTML = `<form id="sessionForm" class="modal-inner">
       <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Séance S${n}</div><h2>Tendances cliniques</h2></div><button class="close-btn" type="button" data-close>×</button></div>
       <div class="form-grid two"><label class="label">Douleur<select name="pain" class="select"><option>↓ mieux</option><option selected>= stable</option><option>↑ pire</option></select></label><label class="label">Décision<select name="decision" class="select"><option>Progresser</option><option selected>Maintenir</option><option>Régresser</option><option>Modifier</option><option>Retester</option></select></label></div>
@@ -693,15 +722,33 @@ th, td { padding: 15px 14px; font-size: 14px; }
       <button class="btn primary" type="submit">Enregistrer S${n}</button>
     </form>`;
     openModal(); wireChips(modalContent); modalContent.querySelector('[data-close]').addEventListener('click', closeModal);
-    document.getElementById('sessionForm').addEventListener('submit', e => {
+    const form = document.getElementById('sessionForm');
+    if (existing) {
+      for (const key of ['pain','decision']) {
+        if (![...form.elements[key].options].some(o => o.value === existing[key])) form.elements[key].add(new Option(existing[key],existing[key]));
+        form.elements[key].value = existing[key];
+      }
+      form.elements.note.value = existing.note || '';
+      for (const key of ['symptoms','exposure','tolerance','adherence']) {
+        const group = form.querySelector(`[data-chip-group="${key}"]`);
+        for (const value of existing[key] || []) {
+          let chip = [...group.querySelectorAll('.chip')].find(button => button.dataset.value === value);
+          if (!chip) { chip = document.createElement('button'); chip.type = 'button'; chip.className = 'chip'; chip.dataset.value = value; chip.textContent = value; group.appendChild(chip); }
+          chip.classList.add('selected');
+        }
+      }
+    }
+    form.addEventListener('submit', e => {
       e.preventDefault(); const fd = new FormData(e.currentTarget);
-      p.sessions.push({id:uid('ses'), n, date:nowISO(), pain:fd.get('pain'), decision:fd.get('decision'), symptoms:chipValues(e.currentTarget,'symptoms'), exposure:chipValues(e.currentTarget,'exposure'), tolerance:chipValues(e.currentTarget,'tolerance'), adherence:chipValues(e.currentTarget,'adherence'), note:String(fd.get('note')||'').trim()});
+      const values = {pain:fd.get('pain'), decision:fd.get('decision'), symptoms:chipValues(e.currentTarget,'symptoms'), exposure:chipValues(e.currentTarget,'exposure'), tolerance:chipValues(e.currentTarget,'tolerance'), adherence:chipValues(e.currentTarget,'adherence'), note:String(fd.get('note')||'').trim()};
+      if (existing) Object.assign(existing,values);
+      else p.sessions.push({id:uid('ses'), n, date:nowISO(), ...values});
       p.updatedAt=nowISO(); saveDB(); closeModal(); showToast(`Séance S${n} enregistrée`); route.tab='sessions'; renderCase();
     });
   }
 
-  function openPivotModal(p) {
-    const defaultSession = p.sessions.length || 1;
+  function openPivotModal(p, existing=null) {
+    const defaultSession = existing ? existing.sessionNumber : lastSessionNumber(p) || 1;
     modalContent.innerHTML = `<form id="pivotForm" class="modal-inner">
       <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Test pivot</div><h2>Mesure qui change la décision</h2></div><button class="close-btn" type="button" data-close>×</button></div>
       <div class="form-grid two"><label class="label">Qualité<select id="pivotQuality" name="qualityId" class="select">${qualitiesFor(p).map(q=>`<option value="${q.id}">${esc(q.name)}</option>`).join('')}</select></label><label class="label">Séance<input name="sessionNumber" class="input" type="number" inputmode="numeric" min="1" max="999" value="${defaultSession}" /></label></div>
@@ -713,11 +760,22 @@ th, td { padding: 15px 14px; font-size: 14px; }
     </form>`;
     openModal();
     const qSelect = document.getElementById('pivotQuality'), tSelect = document.getElementById('pivotTest');
-    const fill = () => { const q=qualitiesFor(p).find(x=>x.id===qSelect.value); tSelect.innerHTML=q.tests.map(t=>`<option>${esc(t)}</option>`).join(''); };
-    fill(); qSelect.addEventListener('change',fill); modalContent.querySelector('[data-close]').addEventListener('click',closeModal);
+    const fill = () => { const q=qualitiesFor(p).find(x=>x.id===qSelect.value); tSelect.innerHTML=(q ? q.tests : []).map(t=>`<option>${esc(t)}</option>`).join(''); };
+    if (existing && ![...qSelect.options].some(o => o.value === existing.qualityId)) qSelect.add(new Option(existing.qualityId,existing.qualityId));
+    if (existing) qSelect.value = existing.qualityId;
+    fill();
+    if (existing) {
+      if (![...tSelect.options].some(o => o.value === existing.test)) tSelect.add(new Option(existing.test,existing.test));
+      tSelect.value = existing.test;
+      const form = document.getElementById('pivotForm');
+      for (const key of ['result','question','decision']) form.elements[key].value = existing[key] || '';
+    }
+    qSelect.addEventListener('change',fill); modalContent.querySelector('[data-close]').addEventListener('click',closeModal);
     document.getElementById('pivotForm').addEventListener('submit', e => {
       e.preventDefault(); const fd = new FormData(e.currentTarget); const sn = Math.max(1, Math.min(999, Number(fd.get('sessionNumber')) || defaultSession));
-      p.pivots.push({id:uid('piv'), date:nowISO(), qualityId:fd.get('qualityId'), test:fd.get('test'), result:String(fd.get('result')||'').trim(), question:String(fd.get('question')||'').trim(), decision:String(fd.get('decision')||'').trim(), sessionNumber:sn});
+      const values = {qualityId:fd.get('qualityId'), test:fd.get('test'), result:String(fd.get('result')||'').trim(), question:String(fd.get('question')||'').trim(), decision:String(fd.get('decision')||'').trim(), sessionNumber:sn};
+      if (existing) Object.assign(existing,values);
+      else p.pivots.push({id:uid('piv'), date:nowISO(), ...values});
       p.updatedAt=nowISO(); saveDB(); closeModal(); showToast('Test pivot enregistré'); route.tab='pivots'; renderCase();
     });
   }
