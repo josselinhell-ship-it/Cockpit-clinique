@@ -30,7 +30,7 @@ const KEY = 'cockpit_clinique_v1_data';
     await page.locator('[data-tab=qualities]').click();
     for (const status of ['A','B','C']) await page.locator(`[data-quality=mobility][data-status=${status}]`).click();
     await page.locator('#quickSessionBtn').click();
-    await page.locator('[data-chip-group=symptoms] .chip').first().click();
+    await page.locator('[data-session-choice=evolution] [data-value=Mieux]').click();
     await page.locator('[name=note]').fill('Séance test');
     await page.locator('#sessionForm button[type=submit]').click();
     await page.locator('#quickPivotBtn').click();

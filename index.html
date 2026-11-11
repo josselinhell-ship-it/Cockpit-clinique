@@ -348,6 +348,39 @@ details > .stack { margin-top:12px; }
  .session-date strong { padding-inline:5px; }
  .quality-summary { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Session-only workflow: check-in, work, three end-of-session KPIs, decision. */
+.session-flow-card .session-date time { display:block; font-size:11px; white-space:nowrap; }
+.session-body.session-workflow { grid-template-columns:minmax(0,1fr); gap:12px; }
+.session-workflow > * { min-width:0; grid-column:1/-1; }
+.session-workflow .session-checkin { font-size:13px; }
+.session-checkin .meta { margin-top:4px; }
+.session-end-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.session-kpi { padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:#f5f8fc; min-width:0; }
+.session-kpi small { display:block; color:var(--muted); font-size:12px; margin-bottom:4px; }
+.session-kpi > strong { font-size:18px; color:var(--navy); }
+.session-workflow .session-decision { width:100%; }
+.session-legacy { font-size:13px; overflow-wrap:anywhere; }
+.session-legacy summary,.session-clinical summary { color:var(--muted); cursor:pointer; padding:8px 0; }
+.session-legacy > .stack { gap:4px; margin-top:8px; }
+.session-form-block { display:grid; gap:12px; min-width:0; }
+.session-form-block h3 { margin:0; color:var(--navy); font-size:17px; }
+.session-form-block + .session-form-block { padding-top:16px; border-top:1px solid var(--border); }
+.session-choice { border:0; padding:0; margin:0; min-width:0; }
+.session-choice legend { font-size:13px; font-weight:600; margin-bottom:6px; padding:0; }
+.session-choice .chip { min-height:44px; border-radius:9px; }
+.session-choice .chip.selected { background:#e2effc; border-color:#4985bd; color:var(--navy); }
+.session-choice [data-goal="Oui"].selected { background:#e6f3eb; color:var(--c); border-color:#89bc9b; }
+.session-choice [data-goal="Partiellement"].selected { background:#fbf0dd; color:var(--b); border-color:#dbbc8b; }
+.session-choice [data-goal="Non"].selected { background:#f9e7e7; color:var(--a); border-color:#d5a0a3; }
+#sessionForm .textarea { min-height:60px; }
+.session-end-inputs { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+.session-end-inputs > .session-choice { grid-column:1/-1; }
+.session-score { display:flex; align-items:center; gap:8px; min-width:0; }
+.session-score .input { width:100%; }
+.session-score > span { flex-shrink:0; color:var(--muted); }
+.session-decision-input { background:#f3f7fd; padding:12px; border-radius:10px; }
+@media(max-width:520px) { .session-flow-card { grid-template-columns:74px minmax(0,1fr); } .session-end-kpis { grid-template-columns:minmax(0,1fr); gap:8px; } .session-kpi { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; } .session-kpi small { margin:0; } }
   </style>
   <title>Cockpit Clinique</title>
 </head>
@@ -1201,9 +1234,31 @@ details > .stack { margin-top:12px; }
     const q = qualitiesFor(p).find(q => q.id === x.qualityId);
     return `<div class="stack small"><div><strong>${esc(q?.name || '')}</strong></div><div>${esc(x.test)} : ${esc(x.result)}</div><div><strong>Question :</strong> ${esc(x.question || '—')}</div><div><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
   }
-  function sessionRowHTML(s) {
-    return `<article class="card session-card"><div class="session-date"><strong>S${esc(s.n)}</strong>${fmtDate(s.date)}</div><div class="session-body"><h3>${esc((s.exposure||[]).join(' · ') || 'Séance de suivi')}</h3><div class="session-indicators"><span><small>Douleur</small><strong>${esc(s.pain ?? '—')}</strong></span>${[['Symptômes',s.symptoms],['Exposition',s.exposure],['Tolérance',s.tolerance],['Observance',s.adherence]].map(([label,values])=>`<span><small>${label}</small><strong>${esc((values||[]).join(' · ')||'—')}</strong></span>`).join('')}</div><div class="session-decision"><small>Décision</small><strong> ${esc(s.decision || '—')}</strong></div>${s.note?`<div class="meta">${esc(s.note)}</div>`:''}${recordActions('session',s.id)}</div></article>`;
+  // Read old sessions without rewriting or reinterpreting their clinical information.
+  function sessionNumberValue(value) {
+    if(value == null || String(value).trim()==='')return null;
+    if(!['string','number'].includes(typeof value))return null;
+    const n=Number(value);return Number.isFinite(n) && n>=0 && n<=10?n:null;
   }
+  function sessionView(s) {
+    const own=key=>Object.prototype.hasOwnProperty.call(s,key);
+    const oldAdherence=Array.isArray(s.adherence)?s.adherence:[];
+    const mapped=oldAdherence.length===1?({'Complète':'Fait','Partielle':'Partiel','Non faite':'Non fait','Fait':'Fait','Partiel':'Partiel','Non fait':'Non fait'})[oldAdherence[0]]||'':'';
+    return {evolution:s.evolution||'',reaction24h:s.reaction24h||'',adherenceCheckin:own('adherenceCheckin')?s.adherenceCheckin:mapped,
+      sessionWork:own('sessionWork')?s.sessionWork:(s.exposure||[]).join(' · '),
+      painMax:sessionNumberValue(own('painMax')?s.painMax:s.pain),rpe:sessionNumberValue(s.rpe),goalAchievement:s.goalAchievement||'',decision:s.decision||'',note:s.note||''};
+  }
+  function legacySessionHTML(s) {
+    const fields=[['pain','Douleur historique'],['symptoms','Symptômes'],['exposure','Exposition historique'],['tolerance','Tolérance'],['adherence','Observance historique']];
+    const rows=fields.filter(([key])=>s[key]!=null && (Array.isArray(s[key])?s[key].length:String(s[key]).trim())).map(([key,label])=>`<div><strong>${label} :</strong> ${esc(Array.isArray(s[key])?s[key].join(' · '):s[key])}</div>`).join('');
+    return rows?`<details class="session-legacy"><summary>Données de l’ancienne séance</summary><div class="small">Informations originales conservées, sans conversion automatique des valeurs qualitatives.</div><div class="stack small">${rows}</div></details>`:'';
+  }
+  function sessionRowHTML(s) {
+    const v=sessionView(s),goalClass=({'Oui':'c','Partiellement':'b','Non':'a'})[v.goalAchievement]||'d';
+    const checkin=[v.evolution,v.reaction24h?'Réaction 24 h : '+v.reaction24h:'',v.adherenceCheckin?'Observance : '+v.adherenceCheckin:''].filter(Boolean).join(' · ');
+    return `<article class="card session-card session-flow-card"><div class="session-date"><strong>S${esc(s.n)}</strong><time datetime="${esc(s.date)}">${fmtDate(s.date)}</time></div><div class="session-body session-workflow"><div class="session-checkin"><div class="small">Check-in</div><div>${esc(checkin||'Non renseigné')}</div>${v.note?`<div class="meta">${esc(v.note)}</div>`:''}</div><div class="session-work"><div class="small">Travail / exposition du jour</div><h3>${esc(v.sessionWork||'Non renseigné')}</h3></div><div class="session-end-kpis"><div class="session-kpi"><small>Douleur max</small><strong>${v.painMax==null?'—':esc(v.painMax)+'/10'}</strong></div><div class="session-kpi"><small>RPE</small><strong>${v.rpe==null?'—':esc(v.rpe)+'/10'}</strong></div><div class="session-kpi"><small>Objectif du jour</small><span class="badge ${goalClass}">${v.goalAchievement==='Oui'?'✓ ':''}${esc(v.goalAchievement||'Non renseigné')}</span></div></div><div class="session-decision"><small>Décision / prochaine étape</small><strong>${esc(v.decision||'Non renseignée')}</strong></div>${legacySessionHTML(s)}${recordActions('session',s.id)}</div></article>`;
+  }
+
   function pivotTimelineHTML(x, p) {
     const q = qualitiesFor(p).find(q => q.id === x.qualityId);
     return `<div class="timeline-item"><strong>${esc(q?.name || '')} · ${esc(x.test)}</strong><div>${esc(x.result || '')}</div>${pivotMetricsHTML(p,x)}${x.proposedStatus ? `<div class="small">Statut proposé : ${esc(x.proposedStatus)} · ${esc(x.referenceUsed || '')}</div>` : ''}${x.chosenStatus ? `<div class="badge ${x.chosenStatus.toLowerCase()}">Décision : ${x.chosenStatus}</div>` : ''}<div class="small">S${x.sessionNumber || '—'} · ${fmtDate(x.date)} · ${esc(x.question || 'Question non renseignée')}</div><div class="small"><strong>Décision :</strong> ${esc(x.decision || '—')}</div>${recordActions('pivot',x.id)}</div>`;
@@ -1271,44 +1326,50 @@ details > .stack { margin-top:12px; }
   }
   function chipValues(scope, name) { return [...scope.querySelectorAll(`[data-chip-group="${name}"] .chip.selected`)].map(b=>b.dataset.value); }
 
+  function sessionChoice(name,label,options,value='') {
+    return `<fieldset class="session-choice"><legend>${esc(label)}</legend><input type="hidden" name="${name}" value="${esc(value)}" /><div class="chips" data-session-choice="${name}">${options.map(o=>`<button class="chip ${value===o?'selected':''}" type="button" data-value="${esc(o)}" aria-pressed="${value===o}"${name==='goalAchievement'?` data-goal="${esc(o)}"`:''}>${esc(o)}</button>`).join('')}</div></fieldset>`;
+  }
   function openSessionModal(p, existing=null) {
-    const n = existing ? existing.n : lastSessionNumber(p) + 1;
-    modalContent.innerHTML = `<form id="sessionForm" class="modal-inner">
-      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Séance S${n}</div><h2>Tendances cliniques</h2></div><button class="close-btn" type="button" data-close>×</button></div>
-      <div class="form-grid two"><label class="label">Douleur<select name="pain" class="select"><option>↓ mieux</option><option selected>= stable</option><option>↑ pire</option></select></label><label class="label">Décision<select name="decision" class="select"><option>Progresser</option><option selected>Maintenir</option><option>Régresser</option><option>Modifier</option><option>Retester</option></select></label></div>
-      <div><div class="label" style="margin-bottom:7px">Symptômes</div>${chipGroup('symptoms',templateFor(p).sessionOptions.symptoms)}</div>
-      <div><div class="label" style="margin-bottom:7px">Exposition</div>${chipGroup('exposure',templateFor(p).sessionOptions.exposure)}</div>
-      <div><div class="label" style="margin-bottom:7px">Tolérance</div>${chipGroup('tolerance',templateFor(p).sessionOptions.tolerance)}</div>
-      <div><div class="label" style="margin-bottom:7px">Observance</div>${chipGroup('adherence',templateFor(p).sessionOptions.adherence)}</div>
-      <label class="label">Note libre (optionnel)<textarea name="note" class="textarea" maxlength="500" placeholder="Uniquement si ça change la décision…"></textarea></label>
-      ${(templateFor(p).sessionFields||[]).length?`<details><summary class="btn secondary">Marqueurs de suivi postopératoire</summary>${measurementFields(templateFor(p).sessionFields,existing?.clinicalValues||{},'clinicalValues')}</details>`:''}
-      <button class="btn primary" type="submit">Enregistrer S${n}</button>
+    const n=existing?existing.n:lastSessionNumber(p)+1,v=sessionView(existing||{});
+    modalContent.innerHTML=`<form id="sessionForm" class="modal-inner">
+      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Séance S${esc(n)}</div><h2>Suivi de séance</h2></div><button class="close-btn" type="button" data-close aria-label="Fermer">×</button></div>
+      <section class="session-form-block" aria-labelledby="sessionCheckinTitle"><h3 id="sessionCheckinTitle">Check-in</h3>
+        ${sessionChoice('evolution','Évolution depuis la dernière séance',['Mieux','Stable','Moins bien'],v.evolution)}
+        ${sessionChoice('reaction24h','Réaction dans les 24 h après la dernière séance / exposition',['Bonne','Acceptable','Mauvaise'],v.reaction24h)}
+        ${sessionChoice('adherenceCheckin','Observance',['Fait','Partiel','Non fait'],v.adherenceCheckin)}
+        <label class="label"><span>Nouveau / commentaire <span class="small">· Facultatif</span></span><textarea name="note" class="textarea" rows="2" placeholder="Nouvelle activité, fatigue, reprise d’entraînement…">${esc(v.note)}</textarea></label>
+        ${legacySessionHTML(existing||{})}
+        ${(templateFor(p).sessionFields||[]).length?`<details class="session-clinical"><summary>Marqueurs de suivi postopératoire</summary><div class="form-grid two">${measurementFields(templateFor(p).sessionFields,existing?.clinicalValues||{},'clinicalValues')}</div></details>`:''}
+      </section>
+      <section class="session-form-block"><label class="label">Travail / exposition du jour<input name="sessionWork" class="input" value="${esc(v.sessionWork)}" placeholder="Presse unilatérale · Pogos · Course 2 × 8 min" /></label></section>
+      <section class="session-form-block" aria-labelledby="sessionEndTitle"><h3 id="sessionEndTitle">Fin de séance</h3><div class="session-end-inputs">
+        <label class="label">Douleur max<div class="session-score"><input class="input" name="painMax" type="number" min="0" max="10" step="any" inputmode="decimal" value="${v.painMax??''}" /><span>/10</span></div></label>
+        <label class="label">RPE<div class="session-score"><input class="input" name="rpe" type="number" min="0" max="10" step="any" inputmode="decimal" value="${v.rpe??''}" /><span>/10</span></div></label>
+        ${sessionChoice('goalAchievement','Objectif du jour atteint ?',['Oui','Partiellement','Non'],v.goalAchievement)}
+      </div></section>
+      <section class="session-form-block session-decision-input"><label class="label">Décision / prochaine étape<input class="input" name="decision" value="${esc(v.decision)}" placeholder="Maintenir le volume, augmenter la charge, réévaluer la phase…" /></label></section>
+      <div class="btn-row"><button class="btn primary" type="submit">Enregistrer S${esc(n)}</button></div>
     </form>`;
-    openModal(); wireChips(modalContent); modalContent.querySelector('[data-close]').addEventListener('click', closeModal);
-    const form = document.getElementById('sessionForm');
-    if (existing) {
-      for (const key of ['pain','decision']) {
-        if (![...form.elements[key].options].some(o => o.value === existing[key])) form.elements[key].add(new Option(existing[key],existing[key]));
-        form.elements[key].value = existing[key];
-      }
-      form.elements.note.value = existing.note || '';
-      for (const key of ['symptoms','exposure','tolerance','adherence']) {
-        const group = form.querySelector(`[data-chip-group="${key}"]`);
-        for (const value of existing[key] || []) {
-          let chip = [...group.querySelectorAll('.chip')].find(button => button.dataset.value === value);
-          if (!chip) { chip = document.createElement('button'); chip.type = 'button'; chip.className = 'chip'; chip.dataset.value = value; chip.textContent = value; group.appendChild(chip); }
-          chip.classList.add('selected');
-        }
-      }
-    }
-    form.addEventListener('submit', e => {
-      e.preventDefault(); const fd = new FormData(e.currentTarget);
-      const values = {pain:fd.get('pain'), decision:fd.get('decision'), symptoms:chipValues(e.currentTarget,'symptoms'), exposure:chipValues(e.currentTarget,'exposure'), tolerance:chipValues(e.currentTarget,'tolerance'), adherence:chipValues(e.currentTarget,'adherence'), note:String(fd.get('note')||'').trim()};
-      if(templateFor(p).sessionFields)values.clinicalValues=readSchema(templateFor(p).sessionFields,fd,'clinicalValues');
-      if (existing) Object.assign(existing,values);
-      else p.sessions.push({id:uid('ses'), n, date:nowISO(), ...values});
-      p.updatedAt=nowISO(); saveDB(); closeModal(); showToast(`Séance S${n} enregistrée`); route.tab='sessions'; renderCase();
+    openModal();modalContent.querySelector('[data-close]').onclick=closeModal;
+    const form=document.getElementById('sessionForm');
+    const clinicalSchema=templateFor(p).sessionFields,initialClinical=clinicalSchema?readSchema(clinicalSchema,new FormData(form),'clinicalValues'):null;
+    form.querySelectorAll('[data-session-choice]').forEach(group=>group.onclick=e=>{
+      const button=e.target.closest('button[data-value]');if(!button)return;
+      const input=form.elements[group.dataset.sessionChoice],value=input.value===button.dataset.value?'':button.dataset.value;
+      input.value=value;group.querySelectorAll('button').forEach(b=>{const active=b.dataset.value===value;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));});
     });
+    form.onsubmit=e=>{
+      e.preventDefault();const fd=new FormData(form);
+      const values={evolution:String(fd.get('evolution')||''),reaction24h:String(fd.get('reaction24h')||''),adherenceCheckin:String(fd.get('adherenceCheckin')||''),sessionWork:String(fd.get('sessionWork')||'').trim(),painMax:sessionNumberValue(fd.get('painMax')),rpe:sessionNumberValue(fd.get('rpe')),goalAchievement:String(fd.get('goalAchievement')||''),decision:String(fd.get('decision')||'').trim(),note:String(fd.get('note')||'').trim()};
+      if(clinicalSchema){
+        const clinical=readSchema(clinicalSchema,fd,'clinicalValues');
+        if(!existing)values.clinicalValues=clinical;
+        else {const changes=Object.fromEntries(Object.entries(clinical).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(initialClinical[key])));if(existing.clinicalValues || Object.keys(changes).length)values.clinicalValues={...(existing.clinicalValues||{}),...changes};}
+      }
+      // Old fields and unknown extensions stay intact when the session is edited.
+      if(existing)Object.assign(existing,values);else p.sessions.push({id:uid('ses'),n,date:nowISO(),...values});
+      p.updatedAt=nowISO();saveDB();closeModal();showToast(`Séance S${n} enregistrée`);route.tab='sessions';renderCase();
+    };
   }
 
   function openPivotModal(p, existing=null, initialQuality=null, initialTest=null) {

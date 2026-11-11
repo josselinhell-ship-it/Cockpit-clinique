@@ -89,3 +89,18 @@ Les grilles passent en une colonne sous 700 px. Les conteneurs et formulaires ut
 La maquette fournie a été intégrée lors de la seconde passe : navigation marine avec icônes SVG, lignes patients avec templates et progression LCA réelle, timeline reliée, cartes cliniques avec lettre distincte et panneau Mesure → décision → qualité. Les couleurs A/B/C/D restent celles du cahier des charges clinique initial. Les âges et sports ne sont pas inventés : seules les données existantes sont affichées.
 
 Limite existante : le dépôt ne contient pas `sw.js`, bien que son enregistrement soit déjà prévu dans l’application : cette refonte conserve ce comportement existant et ne certifie pas le mode hors ligne sur un iPad réel.
+
+## Suivi des séances : check-in → travail → fin de séance → décision
+
+Le formulaire de séance comporte, dans cet ordre :
+
+- **Check-in** : évolution (Mieux / Stable / Moins bien), réaction à 24 h (Bonne / Acceptable / Mauvaise), observance (Fait / Partiel / Non fait) et commentaire facultatif. Les boutons sont à sélection unique et peuvent être désélectionnés.
+- **Travail / exposition du jour** : texte simple.
+- **Fin de séance** : exactement trois KPI, Douleur max et RPE sur 10, puis objectif atteint (Oui / Partiellement / Non). Les valeurs nulles restent vides ; une valeur numérique zéro est conservée.
+- **Décision / prochaine étape** : texte libre mis en évidence.
+
+Tous ces champs sont facultatifs. Le design général et les autres vues restent inchangés. Les marqueurs postopératoires LCA restent accessibles dans le check-in, sous une section repliée ; le nouveau champ réaction à 24 h ne remplace pas les marqueurs sources des critères de phase.
+
+La compatibilité utilise une projection de lecture, sans migration de base. L’exposition historique préremplit le travail du jour ; une ancienne douleur n’alimente Douleur max que si elle est numérique et comprise entre 0 et 10. Les tendances qualitatives ne produisent aucun score ni évolution inventés. Une observance historique unique et équivalente peut préremplir le check-in (`Complète`, `Partielle`, `Non faite`) ; les valeurs ambiguës restent non renseignées. Le nouveau champ `adherenceCheckin` évite de remplacer l’ancien tableau `adherence`. Les champs historiques `pain`, `symptoms`, `exposure`, `tolerance`, `adherence` et les extensions inconnues sont conservés et les informations historiques restent consultables dans la timeline et le formulaire. Une correction de séance conserve identifiant, numéro et date ; les marqueurs postopératoires inchangés ne sont pas réécrits.
+
+`node tests/sessions.cjs` vérifie la création complète et partielle, les sélections exclusives, les bornes et valeurs zéro, les trois KPI, la modification/suppression et leur annulation, la lecture des séances anciennes, la conservation des champs et autres cas, le rechargement et les quatre largeurs 1440/1180/820/390 px. Les captures sont disponibles dans `/tmp/cockpit-session-review` ou `UI_SCREENSHOT_DIR`. Les tests smoke et longitudinal ont été adaptés aux nouveaux contrôles de séance ; les assertions de régression des autres parcours sont conservées.
