@@ -77,3 +77,13 @@ Le N/kg utilise la masse corporelle saisie dans le pivot (reprise pour les saisi
 Le moteur de phase est déclaré par configuration (`template.phases[].criteria`, callbacks d’évaluation, recommandations, champs par phase, priorités, résultats et contexte). Il ne teste pas l’identifiant LCA pour son fonctionnement. Les champs `caseData`, `phase`, `phaseHistory`, `criterionOverrides` et les marqueurs `session.clinicalValues` sont facultatifs pour les anciens templates. La migration v3→v4 change seulement la version de l’enveloppe et conserve les anciens cas à l’identique ; la sauvegarde brute locale précède cette migration, comme pour v1/v2. Aucun cas, pivot ou mesure CHEVILLE/GENOU n’est créé ou réinterprété par cet ajout.
 
 `tests/lca.cjs` couvre le parcours chirurgical et les quatre phases, les critères calculés sans double saisie, les confirmations, les exceptions documentées, la force normalisée, le CMJ, les pogos, les expositions, l’ACL-RSI, les hop tests, le bilan externe, les séances, l’édition et la suppression de pivots, les dégradations, la persistance et l’export/restauration. Il vérifie aussi que deux cas CHEVILLE/GENOU préexistants restent identiques.
+
+## Refonte de l’interface clinique
+
+Navigation latérale de 80 px dès 1000 px ; navigation basse et onglets sur tablette portrait et mobile. Les patients disposent de filtres Tous / Actifs / Archivés, d’initiales et des templates associés. Les séances sont présentées en timeline avec indicateurs et décision, et les actions secondaires conservent une cible tactile de 44 px. Les qualités et pivots utilisent une navigation par qualité à gauche sur grand écran. Le bandeau LCA sépare les critères des freins sans changer leur calcul.
+
+Les grilles passent en une colonne sous 700 px. Les conteneurs et formulaires utilisent `min-width: 0`, des largeurs maximales et le retour des textes longs à la ligne ; les modales sont limitées à 760 px et à la hauteur disponible. La navigation basse reste fixe et le contenu conserve une marge finale pour rester accessible au défilement.
+
+`node tests/ui.cjs` vérifie les trois templates, les quatre onglets et les modales séance/pivot/cas à 1440, 1180, 820 et 390 px, avec noms et commentaires longs. Les captures sont enregistrées dans `/tmp/cockpit-ui-review` ou `UI_SCREENSHOT_DIR`. Les six suites de régression clinique restent inchangées.
+
+Limites : aucune image de la maquette validée n’était fournie ; la direction graphique suit le cahier des charges textuel. Le dépôt ne contient pas `sw.js`, bien que son enregistrement soit déjà prévu dans l’application : cette refonte conserve ce comportement existant et ne certifie pas le mode hors ligne sur un iPad réel.

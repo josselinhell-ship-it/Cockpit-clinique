@@ -156,118 +156,111 @@ tr:last-child td { border-bottom:0; }
   .quality-head { display:grid; }
 }
 
-/* iPad : rythme, contrastes et surfaces tactiles */
-body { line-height: 1.5; padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
-button, .patient-card { touch-action: manipulation; }
-button { cursor: pointer; }
-:where(button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid #387da9; outline-offset: 4px;
+/* Clinical dashboard: compact surfaces, generous touch targets. */
+body { line-height:1.5; font-size:15px; }
+:root { --radius:14px; --shadow:0 2px 8px rgba(21,50,74,.035); --bg:#f5f7fa; }
+button,.patient-card { touch-action:manipulation; cursor:pointer; }
+:where(button,input,select,textarea,[tabindex]):focus-visible { outline:3px solid #387da9; outline-offset:3px; }
+:where(.app-shell,.card,.hero,.modal-inner,.form-grid,.grid-2,.stack,.section-head,.quality-head,.patient-top,.btn-row) > * { min-width:0; }
+:where(h1,h2,h3,p,.meta,.small,.badge,.notice,.timeline-item,.hero,.card,label,button,summary) { overflow-wrap:anywhere; }
+input,select,textarea { min-width:0; max-width:100%; box-sizing:border-box; }
+.topbar { min-height:82px; background:white; color:var(--navy); border-bottom:1px solid var(--border); backdrop-filter:none; padding:16px 24px; }
+.topbar h1 { font-size:24px; line-height:1.25; }
+.topbar .eyebrow { font-size:12px; letter-spacing:.03em; text-transform:none; opacity:1; color:var(--muted); }
+.topbar > div:first-child { min-width:0; }
+.top-actions { flex-shrink:0; }
+.icon-btn { background:var(--soft); color:var(--navy); border-radius:10px; flex-shrink:0; }
+.app-shell { max-width:1240px; padding:24px; }
+.stack,.grid-2 { gap:16px; }
+.card { padding:16px; }
+.section-head { align-items:center; flex-wrap:wrap; margin:8px 0 16px; }
+h2 { font-size:20px; } h3 { font-size:17px; }
+.btn { min-height:44px; padding:8px 14px; border-radius:9px; font-size:14px; font-weight:600; max-width:100%; white-space:normal; }
+.btn.danger { border-color:transparent; background:#fcf7f7; }
+.input,.select,.textarea { min-height:44px; border-radius:9px; padding:10px 12px; }
+.textarea { min-height:100px; }
+.badge { min-height:26px; padding:3px 9px; white-space:normal; }
+.patient-card { gap:8px; border-left:0; position:relative; padding-right:40px; }
+.patient-card::after { content:'›'; position:absolute; right:16px; top:16px; color:var(--muted); font-size:24px; }
+.patient-card h3 { font-size:17px; }
+.patient-line { display:flex; align-items:center; gap:12px; }
+.avatar { width:40px; height:40px; flex-shrink:0; display:grid; place-items:center; background:#eaf0f7; color:var(--navy); border-radius:12px; font-weight:700; }
+.patient-info { flex:1; min-width:0; }
+.patient-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.hero { padding:18px; background:white; color:var(--ink); border:1px solid var(--border); border-radius:14px; gap:8px; }
+.hero h2 { font-size:24px; color:var(--navy); }
+.hero .meta { color:var(--muted); }
+.hero-actions .btn { color:var(--navy); background:#f3f6fa; border-color:var(--border); }
+.hero-actions #quickSessionBtn { color:white; background:var(--navy); border-color:var(--navy); }
+.tabs { flex-wrap:wrap; overflow:visible; gap:8px; }
+.tab { min-height:44px; border-radius:9px; font-size:14px; }
+.quality-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.quality-summary > div { border:1px solid var(--border); border-radius:10px; padding:12px; }
+.quality-summary .small { margin-top:8px; }
+.quality-card { gap:12px; }
+.quality-head .badge { flex-shrink:0; max-width:48%; }
+.quality-foot { border-top:1px solid var(--border); padding-top:12px; }
+.status-btn { min-height:44px; }
+.quality-workspace { display:grid; grid-template-columns:250px minmax(0,1fr); gap:16px; align-items:start; }
+.quality-index { display:grid; gap:8px; position:sticky; top:98px; }
+.quality-link { display:flex; align-items:center; justify-content:space-between; text-align:left; gap:8px; }
+.quality-link.active { background:#eaf0f7; border-color:#9eb2c1; }
+.phase-heading { background:var(--navy); color:white; border-radius:10px; padding:16px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px; }
+.phase-heading h2 { font-size:20px; }
+.phase-heading progress { display:block; width:160px; max-width:100%; height:6px; margin-top:8px; accent-color:#a8d5e9; }
+.phase-columns { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:16px; }
+.phase-criteria { display:grid; gap:12px; }
+.phase-blockers { background:#fff8ed; border:1px solid #efdfc4; border-radius:10px; padding:16px; align-self:start; }
+.phase-blockers ul { padding-left:20px; margin-bottom:0; }
+.session-timeline { display:grid; gap:16px; }
+.session-card { display:grid; grid-template-columns:86px minmax(0,1fr); gap:16px; }
+.session-date { border-right:2px solid #d8e4ee; padding-right:12px; color:var(--muted); font-size:12px; }
+.session-date strong { display:block; font-size:20px; color:var(--navy); }
+.session-body { display:grid; gap:12px; min-width:0; }
+.session-body h3 { margin:0; font-size:16px; }
+.session-indicators { display:flex; flex-wrap:wrap; gap:8px; }
+.session-indicators span { background:var(--soft); border-radius:7px; padding:5px 8px; font-size:12px; }
+.session-decision { color:var(--navy); background:#edf3fa; border-radius:8px; padding:8px 12px; }
+.record-actions { gap:8px; }
+.record-actions .btn { padding:6px 10px; min-height:44px; border:0; background:transparent; font-size:13px; }
+.timeline-item { background:white; border:1px solid var(--border); border-left:3px solid #b7c7d1; border-radius:10px; padding:16px; }
+.modal { width:min(760px,calc(100% - 24px)); max-height:calc(100dvh - 24px); border-radius:16px; }
+.modal-inner { padding:24px; gap:16px; }
+.modal-head h2 { font-size:22px; }
+.modal-inner > .btn-row:last-child { border-top:1px solid var(--border); padding-top:16px; }
+summary { cursor:pointer; }
+details > .stack { margin-top:12px; }
+.toast { max-width:calc(100% - 24px); overflow-wrap:anywhere; }
+@media (min-width:1000px) {
+ body { padding-left:80px; padding-bottom:0; }
+ .bottom-nav { width:80px; top:0; bottom:0; right:auto; display:flex; flex-direction:column; justify-content:flex-start; padding:16px 6px; gap:12px; border-right:1px solid var(--border); border-top:0; background:white; }
+ .nav-btn { font-size:11px; min-height:60px; border-radius:10px; padding:6px 2px; width:100%; }
+ .nav-icon { display:block; font-size:22px; line-height:1.4; }
+ .toast { bottom:24px; }
 }
-.topbar {
-  min-height: 100px;
-  padding: calc(20px + env(safe-area-inset-top)) max(24px, calc((100vw - 1044px) / 2)) 20px;
-  background: #15324a; border-bottom: 1px solid #345269;
-  box-shadow: 0 4px 18px rgba(21,50,74,.1);
+@media (max-width:999px) { .case-nav { display:none; } .nav-icon { margin-right:6px; } }
+@media (max-width:700px) {
+ .app-shell { padding:16px 12px; }
+ .topbar { position:relative; padding:12px; min-height:76px; }
+ .topbar h1 { font-size:22px; }
+ .topbar .eyebrow { font-size:11px; }
+ .quality-summary,.phase-columns,.quality-workspace,.grid-2,.form-grid.two { grid-template-columns:minmax(0,1fr); }
+ .quality-index { position:static; grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .session-card { grid-template-columns:58px minmax(0,1fr); gap:12px; padding:12px; }
+ .session-date { padding-right:8px; }
+ .quality-head { display:flex; flex-wrap:wrap; }
+ .modal-inner { padding:16px; }
+ .hero { padding:16px; }
+ .bottom-nav { gap:4px; padding-inline:8px; }
+ .nav-btn { font-size:12px; }
 }
-.topbar > div:first-child { min-width: 0; }
-.topbar h1 { margin-top: 5px; font-size: clamp(23px, 3vw, 30px); line-height: 1.25; overflow-wrap: anywhere; letter-spacing: -.025em; }
-.topbar .eyebrow { color: #bfced9; opacity: 1; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
-.top-actions { flex-shrink: 0; gap: 10px; }
-.icon-btn { width: 48px; height: 48px; border: 1px solid #567084; background: #29465e; }
-.app-shell { padding: 28px; }
-.stack, .grid-2 { gap: 20px; }
-.section-head { margin: 8px 0 18px; align-items: center; }
-.section-head h2 { font-size: 20px; letter-spacing: -.02em; }
-.section-head p { margin-top: 5px; font-size: 14px; }
-.search { margin-bottom: 24px; }
-.input, .select, .textarea { min-height: 52px; padding: 13px 15px; border-color: #b8c8d3; }
-.search .input { box-shadow: 0 2px 6px rgba(21,50,74,.03); }
-.card { padding: 22px; box-shadow: 0 3px 12px rgba(21,50,74,.04); }
-.patient-card { gap: 16px; border-left: 4px solid var(--navy-2); }
-.patient-card h3 { font-size: 21px; letter-spacing: -.02em; line-height: 1.35; overflow-wrap: anywhere; }
-.patient-top > div { min-width: 0; }
-.patient-top > .badge { flex-shrink: 0; }
-.patient-top .meta { margin-top: 5px; }
-.patient-card > .meta { font-size: 15px; color: #344f62; overflow-wrap: anywhere; }
-.meta { font-size: 14px; }
-.badges { gap: 9px; }
-.badge { min-height: 34px; padding: 5px 12px; font-size: 13px; border: 1px solid transparent; }
-.badge.a { border-color: #e3b4b7; color: #8a3037; background: #fbecee; }
-.badge.b { border-color: #dcc59e; color: #714a14; background: #fcf3e3; }
-.badge.c { border-color: #a9cfb7; color: #245f40; background: #eaf5ee; }
-.badge.d { border-color: #c5cfd7; color: #465966; background: #eef2f5; }
-.patient-card .badges { padding-top: 14px; border-top: 1px solid #e5ecf1; }
-.patient-card .badges .badge { min-width: 60px; justify-content: center; font-variant-numeric: tabular-nums; }
-.bottom-nav {
-  left: 20px; right: 20px; bottom: calc(12px + env(safe-area-inset-bottom));
-  max-width: 700px; margin-inline: auto; padding: 8px; gap: 8px;
-  border: 1px solid #cbd7df; border-radius: 22px;
-  background: #fff; box-shadow: 0 8px 30px rgba(21,50,74,.14);
-}
-.nav-btn { min-height: 56px; font-size: 15px; color: #435e72; }
-.nav-btn.active { background: #e7eff5; color: var(--navy); box-shadow: inset 0 0 0 1px #bbcdda; }
-#newPatientBtn { background: var(--navy); color: white; }
-.hero { padding: 26px; gap: 16px; background: #15324a; }
-.hero h2 { font-size: 28px; letter-spacing: -.025em; overflow-wrap: anywhere; }
-.hero .meta { color: #c4d4df; }
-.hero-actions { gap: 12px; }
-.hero-actions .case-archive { background: transparent; font-weight: 500; }
-.btn { min-height: 50px; padding: 12px 18px; font-weight: 700; }
-.tabs { gap: 10px; padding: 5px 4px 8px; }
-.tab { min-height: 48px; padding: 10px 18px; font-weight: 700; }
-.quality-card { gap: 18px; }
-.quality-card h3 { font-size: 18px; }
-.quality-head > div { min-width: 0; }
-.quality-head .badge { max-width: 48%; border-radius: 12px; }
-.quality-foot { gap: 8px; font-size: 14px; padding-top: 14px; border-top: 1px solid #e5ecf1; }
-.status-grid { gap: 12px; }
-.status-btn { min-height: 54px; font-size: 19px; color: #43596b; background: #f7f9fb; }
-.status-btn.active { border-width: 2px; outline: 2px solid var(--navy); outline-offset: 2px; }
-.chip { min-height: 46px; padding: 10px 14px; font-size: 14px; }
-.chip.selected { border-color: #63859c; box-shadow: inset 0 0 0 1px #63859c; }
-.kpi { padding: 17px; background: white; }
-.kpi strong { font-size: 28px; color: var(--navy); line-height: 1.3; font-variant-numeric: tabular-nums; }
-.kpi span { font-size: 13px; }
-.small, .timeline-item .small { font-size: 14px; }
-.notice { padding: 16px; font-size: 14px; }
-.empty { padding: 40px 20px; font-size: 15px; }
-th, td { padding: 15px 14px; font-size: 14px; }
-.timeline-item { padding: 16px; }
-.modal { max-height: calc(100dvh - 32px); color: var(--ink); }
-.modal-inner { padding: 28px; gap: 20px; }
-.modal-head h2 { font-size: 24px; line-height: 1.3; }
-.label { font-size: 14px; gap: 8px; }
-.form-grid { gap: 16px; }
-.close-btn { flex-shrink: 0; width: 48px; height: 48px; }
-.toast { bottom: calc(104px + env(safe-area-inset-bottom)); max-width: calc(100% - 32px); width: max-content; text-align: center; transition: none; }
-@media (hover: hover) {
-  .patient-card:hover { border-color: #8da9bc; background: #fbfdff; }
-  .nav-btn:not(.active):not(#newPatientBtn):hover { background: #f0f5f8; }
-  .btn.secondary:hover, .tab:not(.active):hover { background: #edf3f7; }
-}
-@media (max-width: 600px) {
-  .topbar { min-height: 88px; padding: calc(16px + env(safe-area-inset-top)) 18px 16px; gap: 10px; }
-  .app-shell { padding: 20px 16px; }
-  .card { padding: 18px; }
-  .patient-top { flex-wrap: wrap; }
-  .bottom-nav { left: 12px; right: 12px; }
-  .nav-btn { font-size: 14px; }
-  .hero, .modal-inner { padding: 20px; }
-  .quality-head { display: grid; }
-  .quality-head .badge { max-width: 100%; justify-self: start; }
-  .status-grid { gap: 10px; }
-  .kpi { padding: 12px; }
-  .kpi strong { font-size: 25px; }
-}
-.quality-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
-.quality-summary .small { margin-top: 5px; }
   </style>
   <title>Cockpit Clinique</title>
 </head>
 <body>
   <header class="topbar">
     <div>
-      <div class="eyebrow">Cockpit clinique</div>
+      <div class="eyebrow">Cockpit Clinique · Suivi clinique en kinésithérapie du sport</div>
       <h1 id="pageTitle">Patients actifs</h1>
     </div>
     <div class="top-actions">
@@ -279,9 +272,11 @@ th, td { padding: 15px 14px; font-size: 14px; }
   <main id="app" class="app-shell" aria-live="polite"></main>
 
   <nav class="bottom-nav" aria-label="Navigation principale">
-    <button class="nav-btn active" data-route="patients" type="button">Actifs</button>
-    <button class="nav-btn" data-route="archives" type="button">Tous / Archives</button>
-    <button class="nav-btn" id="newPatientBtn" type="button">+ Patient</button>
+    <button class="nav-btn active" data-route="patients" type="button"><span class="nav-icon" aria-hidden="true">▦</span>Patients</button>
+    <button class="nav-btn" data-route="archives" type="button"><span class="nav-icon" aria-hidden="true">▤</span>Archives</button>
+    <button class="nav-btn case-nav hidden" data-case-tab="sessions" type="button"><span class="nav-icon" aria-hidden="true">≡</span>Séances</button>
+    <button class="nav-btn case-nav hidden" data-case-tab="qualities" type="button"><span class="nav-icon" aria-hidden="true">◇</span>Qualités</button>
+    <button class="nav-btn" id="newPatientBtn" type="button"><span class="nav-icon" aria-hidden="true">＋</span>Patient</button>
   </nav>
 
   <dialog id="modal" class="modal">
@@ -688,6 +683,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     });
   }
   function render() {
+    document.querySelectorAll('.case-nav').forEach(b=>b.classList.toggle('hidden',route.name!=='case'));
     document.querySelectorAll('.nav-btn[data-route]').forEach(b => b.classList.toggle('active', b.dataset.route === route.name));
     backBtn.classList.toggle('hidden', !['patient','case'].includes(route.name));
     if (route.name === 'patients') renderPatients(false);
@@ -699,13 +695,16 @@ th, td { padding: 15px 14px; font-size: 14px; }
     pageTitle.textContent = archived ? 'Tous les patients' : 'Patients actifs';
     const list = db.patients.filter(p => archived || casesFor(p.id).some(c => c.status === 'active'));
     app.innerHTML = `<div class="search"><input id="searchInput" class="input" type="search" placeholder="Rechercher un patient…" /></div>
-      <div class="section-head"><div><h2>${archived ? 'Tous les patients · avec ou sans cas' : 'Suivis en cours'}</h2><p>${list.length} patient(s)</p></div></div><div id="patientList" class="stack"></div>`;
+      <div class="section-head"><div><h2>${archived ? 'Tous les patients · avec ou sans cas' : 'Suivis en cours'}</h2><p id="patientCount">${list.length} patient(s)</p></div></div><div class="patient-filters" role="group" aria-label="Filtrer les patients">${[['all','Tous'],['active','Actifs'],['archived','Archivés']].map(([id,label])=>`<button type="button" class="chip ${id===(archived?'all':'active')?'selected':''}" data-patient-filter="${id}" aria-pressed="${id===(archived?'all':'active')}">${label}</button>`).join('')}</div><div id="patientList" class="stack"></div>`;
     const holder = document.getElementById('patientList');
+    let patientFilter = archived ? 'all' : 'active';
     const renderList = query => {
-      holder.innerHTML = list.filter(p => [p.name,...casesFor(p.id).flatMap(c => [c.title,c.subtype,c.objective,c.targetFunction])].join(' ').toLowerCase().includes(query.toLowerCase())).map(p =>
-        `<article class="card patient-card" role="button" tabindex="0" data-patient="${esc(p.id)}"><h3>${esc(p.name)}</h3><div class="meta">${casesFor(p.id).filter(c => c.status === 'active').length} cas actif(s) · ${casesFor(p.id).filter(c => c.status === 'archived').length} cas archivé(s)</div></article>`).join('') || '<div class="empty">Aucun patient.</div>';
+      holder.innerHTML = db.patients.filter(p => patientFilter === 'all' || casesFor(p.id).some(c=>c.status === patientFilter)).filter(p => [p.name,...casesFor(p.id).flatMap(c => [c.title,c.subtype,c.objective,c.targetFunction])].join(' ').toLowerCase().includes(query.toLowerCase())).map(p =>
+        `<article class="card patient-card" role="button" tabindex="0" data-patient="${esc(p.id)}"><div class="patient-line"><span class="avatar" aria-hidden="true">${esc(p.name.split(/\s+/).map(n=>n[0]).slice(0,2).join(''))}</span><div class="patient-info"><h3>${esc(p.name)}</h3><div class="meta">${casesFor(p.id).filter(c => c.status === 'active').length} cas actif(s) · ${casesFor(p.id).filter(c => c.status === 'archived').length} cas archivé(s)</div><div class="badges">${[...new Set(casesFor(p.id).map(c=>templateFor(c).name))].map(name=>`<span class="badge">${esc(name)}</span>`).join('')}</div></div></div></article>`).join('') || '<div class="empty">Aucun patient.</div>';
+      document.getElementById('patientCount').textContent=holder.querySelectorAll('[data-patient]').length+' patient(s)';
       wireCards(holder, '[data-patient]', el => setRoute('patient',el.dataset.patient));
     };
+    holder.parentElement.querySelectorAll('[data-patient-filter]').forEach(b=>b.onclick=()=>{patientFilter=b.dataset.patientFilter;holder.parentElement.querySelectorAll('[data-patient-filter]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});renderList(document.getElementById('searchInput').value);});
     renderList(''); document.getElementById('searchInput').addEventListener('input',e => renderList(e.target.value));
   }
   function renderPatientProfile() {
@@ -723,6 +722,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   }
 
   function renderCase() {
+    document.querySelectorAll('.case-nav').forEach(b=>{b.classList.remove('hidden');b.classList.toggle('active',b.dataset.caseTab===route.tab);b.onclick=()=>{route.tab=b.dataset.caseTab;renderCase();};});
     const p = db.cases.find(c => c.id === route.caseId && c.patientId === route.patientId);
     if (!p) return setRoute('patient', route.patientId);
     const patient = getPatient(p.patientId);
@@ -731,13 +731,13 @@ th, td { padding: 15px 14px; font-size: 14px; }
       ['overview','Synthèse'], ['qualities','Qualités'], ['sessions','Séances'], ['pivots','Tests pivots']
     ];
     app.innerHTML = `
-      ${phasePanelHTML(p)}
       <section class="hero">
         <div><div class="meta">${esc(templateFor(p).name)} · ${esc(p.subtype)} · ${esc(p.side || 'Côté non renseigné')}</div><h2>${esc(p.title)}</h2><div>${esc(patient.name)}${p.status === 'archived' ? ' · Cas archivé' : ''}</div></div>
         <div>${esc(p.objective || 'Objectif non renseigné')}</div>
         ${templateFor(p).phases?`<div class="meta">Fonction cible : ${esc(p.targetFunction||'—')}</div>`:''}
         <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button>${p.status === 'active' ? '<button class="btn case-archive" id="archiveDirectBtn" type="button">Archiver le cas</button>' : ''}</div>
       </section>
+      ${phasePanelHTML(p)}
       <div class="tabs" style="margin:14px 0">
         ${tabs.map(([id,label]) => `<button class="tab ${route.tab===id?'active':''}" data-tab="${id}" type="button">${label}</button>`).join('')}
       </div>
@@ -783,7 +783,8 @@ th, td { padding: 15px 14px; font-size: 14px; }
     return primary.map(q=>qualityHTML(p,q)).join('')+(secondary.length?`<details><summary class="btn secondary">+ Autres qualités / mesures</summary><div class="stack">${secondary.map(q=>qualityHTML(p,q)).join('')}</div></details>`:'');
   }
   function renderQualities(holder, p) {
-    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>${esc(templateFor(p).guidance || '')}</p></div></div><div class="stack">${qualityCardsHTML(p)}</div>`;
+    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>${esc(templateFor(p).guidance || '')}</p></div></div><div class="quality-workspace"><nav class="quality-index" aria-label="Qualités cliniques">${qualitiesFor(p).map(q=>`<button class="btn quality-link" type="button" data-quality-link="${q.id}"><span>◇ ${esc(q.name)}</span><span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${p.qualityStatus[q.id]||'D'}</span></button>`).join('')}</nav><div class="stack">${qualityCardsHTML(p)}</div></div>`;
+    holder.querySelectorAll('[data-quality-link]').forEach(b=>b.onclick=()=>{const target=holder.querySelector('#quality-'+b.dataset.qualityLink);if(!target)return;for(let el=target.parentElement;el && el!==holder;el=el.parentElement)if(el.tagName==='DETAILS')el.open=true;target.scrollIntoView({block:'start'});holder.querySelectorAll('[data-quality-link]').forEach(x=>x.classList.toggle('active',x===b));});
     wireMeasurements(holder, p);
     holder.querySelectorAll('.status-btn').forEach(btn => btn.addEventListener('click', () => {
       const qid = btn.dataset.quality, next = btn.dataset.status, old = p.qualityStatus[qid] || 'D';
@@ -801,7 +802,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     const st = p.qualityStatus[q.id] || 'D';
     const hist = p.statusHistory.filter(h => h.qualityId === q.id).slice(-4);
     const latestPivot = [...p.pivots].reverse().find(x => x.qualityId === q.id);
-    return `<section class="card quality-card">
+    return `<section class="card quality-card" id="quality-${q.id}" style="scroll-margin-top:100px">
       <div class="quality-head"><div><h3>${esc(q.name)}</h3><div class="meta">Pivot : ${esc(q.pivot)}</div></div><span class="badge ${st.toLowerCase()}">${st} · ${statusLabel(st)}</span></div>
       <div class="status-grid">${['A','B','C','D'].map(s => `<button type="button" class="status-btn ${st===s?'active':''}" data-quality="${q.id}" data-status="${s}">${s}</button>`).join('')}</div>
       ${measurementDetailHTML(p,q)}
@@ -994,16 +995,15 @@ th, td { padding: 15px 14px; font-size: 14px; }
     const template=templateFor(p),phase=phaseDefinition(p);if(!phase)return '';
     const criteria=evaluatedCriteria(p,phase),applicable=criteria.filter(c=>c.state!=='na'),passed=applicable.filter(c=>c.state==='pass').length;
     const blockers=criteria.filter(c=>['fail','unknown'].includes(c.state));
-    if(route.tab!=='overview')return `<section class="card" id="phasePanel" style="margin-bottom:20px"><strong>Phase ${phase.id} — ${esc(phase.name)}</strong><div>${passed} / ${applicable.length} critères validés</div><button class="btn secondary" type="button" id="showPhaseCriteria">Voir les critères de phase</button></section>`;
+    if(route.tab!=='overview')return `<section class="card phase-heading" id="phasePanel" style="margin-top:16px;margin-bottom:20px"><strong>Phase ${phase.id} — ${esc(phase.name)}</strong><div>${passed} / ${applicable.length} critères validés</div><button class="btn secondary" type="button" id="showPhaseCriteria">Voir les critères de phase</button></section>`;
     const degraded=[];
     for(const history of p.phaseHistory||[]) if(history.type==='transition' && history.from<(p.phase||1)) {
       const prior=template.phases.find(ph=>ph.id===history.from);if(!prior)continue;
       evaluatedCriteria(p,prior).forEach(c=>{if(history.criteria?.some(old=>old.id===c.id && old.rawState==='pass') && !['pass','na'].includes(c.rawState))degraded.push(c.label);});
     }
-    return `<section class="card stack" id="phasePanel" style="margin-bottom:20px"><div><div class="eyebrow">Phase actuelle</div><h2 style="margin:4px 0">Phase ${phase.id} — ${esc(phase.name)}</h2><strong>${passed} / ${applicable.length} critères validés</strong></div>
-      <div style="display:grid;gap:10px">${criteria.map(c=>`<div data-criterion="${c.id}" data-state="${c.state}"><strong>${c.state==='pass'?'✅':c.state==='fail'?'❌':c.state==='na'?'—':'○'} ${esc(c.label)}</strong><span class="small"> — ${esc(c.state==='na'?'Non applicable':c.override?(c.state==='pass'?'Validé cliniquement':c.state==='fail'?'Non validé cliniquement':'Non évalué'):c.detail)}${c.state==='unknown'?' · Non évalué':''}${c.override?' · Override clinique : '+esc(c.override.reason):''}${c.override && c.rawState==='fail' && c.state==='pass'?' · Mesure actuelle non validée, override conservé.':''}</span></div>`).join('')}</div>
+    return `<section class="card stack" id="phasePanel" style="margin-top:16px;margin-bottom:20px"><div class="phase-heading"><div class="eyebrow">Phase actuelle</div><h2 style="margin:4px 0">Phase ${phase.id} — ${esc(phase.name)}</h2><div><strong>${passed} / ${applicable.length} critères validés</strong><progress value="${passed}" max="${applicable.length||1}" aria-label="Critères validés"></progress></div></div>
+      <div class="phase-columns"><div class="phase-criteria"><h3>Critères de phase</h3>${criteria.map(c=>`<div data-criterion="${c.id}" data-state="${c.state}"><strong>${c.state==='pass'?'✅':c.state==='fail'?'❌':c.state==='na'?'—':'○'} ${esc(c.label)}</strong><span class="small"> — ${esc(c.state==='na'?'Non applicable':c.override?(c.state==='pass'?'Validé cliniquement':c.state==='fail'?'Non validé cliniquement':'Non évalué'):c.detail)}${c.state==='unknown'?' · Non évalué':''}${c.override?' · Override clinique : '+esc(c.override.reason):''}${c.override && c.rawState==='fail' && c.state==='pass'?' · Mesure actuelle non validée, override conservé.':''}</span></div>`).join('')}</div><aside class="phase-blockers"><strong>Freins actuels</strong><ul>${blockers.map(c=>`<li>${esc(c.blockerLabel||c.label)}</li>`).join('')||'<li>Aucun critère restant — validation clinique de la progression requise.</li>'}</ul></aside></div>
       <details><summary class="btn secondary">Saisir / ajuster les critères</summary><div class="stack">${criteria.map(c=>`<div><strong>${esc(c.label)}</strong><div class="btn-row"><button class="btn secondary" type="button" data-criterion-entry="${c.id}">${c.recordIds.some(id=>p.pivots.some(m=>m.id===id))?'Voir / compléter la mesure':'Saisir la mesure'}</button><button class="btn secondary" type="button" data-criterion-override="${c.id}">Override / non applicable</button></div>${c.recordIds.length?`<details><summary class="btn secondary">Données sources</summary>${c.recordIds.map(id=>{const pivot=p.pivots.find(m=>m.id===id),session=p.sessions.find(m=>m.id===id);return pivot||session?`<button class="btn secondary" type="button" data-phase-source="${esc(id)}" data-source-kind="${pivot?'pivot':'session'}">${esc(pivot?pivot.test:'Séance S'+session.n)} · ${fmtDate((pivot||session).date)}</button>`:'';}).join('')}</details>`:''}</div>`).join('')}<details><summary class="btn secondary">Ajuster la phase / historique</summary><label class="label">Phase<select class="select" id="manualPhase">${template.phases.map(ph=>`<option value="${ph.id}" ${ph.id===phase.id?'selected':''}>${ph.id} — ${esc(ph.name)}</option>`).join('')}</select></label><button class="btn secondary" type="button" id="setPhaseBtn">Valider le changement de phase</button>${(p.phaseHistory||[]).map(h=>`<div class="small">${fmtDateTime(h.date)} · ${h.type==='transition'?`Phase ${h.from} → ${h.to}`:'Override de critère'} · ${esc(h.reason||'')}</div>`).join('')}</details></div></details>
-      <div><strong>Freins actuels :</strong> ${esc(blockers.map(c=>c.blockerLabel||c.label).join(' · ')||'Aucun critère restant — validation clinique de la progression requise.')}</div>
       ${degraded.length?`<div class="notice" role="status">Dégradation / donnée manquante depuis le passage : ${esc([...new Set(degraded)].join(' · '))}. Phase conservée ; réévaluation clinique requise.</div>`:''}
       ${phase.id<template.phases.length?'<button class="btn secondary" id="nextPhaseBtn" type="button">Passer à la phase suivante</button>':''}
 
@@ -1051,7 +1051,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     saveDB(); closeModal(); setRoute('patient', c.patientId);
   }
   function recordActions(kind, id) {
-    return `<div class="btn-row"><button class="btn secondary" type="button" data-edit-${kind}="${esc(id)}">Modifier</button><button class="btn danger" type="button" data-delete-${kind}="${esc(id)}">Supprimer</button></div>`;
+    return `<div class="btn-row record-actions"><button class="btn secondary" type="button" data-edit-${kind}="${esc(id)}">Modifier</button><button class="btn danger" type="button" data-delete-${kind}="${esc(id)}">Supprimer</button></div>`;
   }
   function wireRecordActions(holder, p, kind) {
     const records = kind === 'session' ? p.sessions : p.pivots;
@@ -1073,14 +1073,15 @@ th, td { padding: 15px 14px; font-size: 14px; }
   }
   function renderSessions(holder, p) {
     holder.innerHTML = `<div class="section-head"><div><h2>Suivi longitudinal</h2><p>Tendances cliniques ; les chiffres détaillés restent dans les pivots.</p></div><button id="addSession" class="btn primary" type="button">+ Séance</button></div>
-      ${p.sessions.length ? `<div class="table-wrap"><table><thead><tr><th>S</th><th>Douleur</th><th>Symptômes</th><th>Exposition</th><th>Tolérance</th><th>Observance</th><th>Décision</th><th>Actions</th></tr></thead><tbody>${[...p.sessions].reverse().map(sessionRowHTML).join('')}</tbody></table></div>` : '<div class="empty">Aucune séance enregistrée.</div>'}`;
+      ${p.sessions.length ? `<div class="session-timeline">${[...p.sessions].reverse().map(sessionRowHTML).join('')}</div>` : '<div class="empty">Aucune séance enregistrée.</div>'}`;
     wireRecordActions(holder, p, 'session');
     document.getElementById('addSession').addEventListener('click', () => openSessionModal(p));
   }
 
   function renderPivots(holder, p) {
     holder.innerHTML = `<div class="section-head"><div><h2>Tests pivots</h2><p>Un test doit répondre à une question clinique et pouvoir modifier la décision.</p></div><button id="addPivot" class="btn primary" type="button">+ Pivot</button></div>
-      ${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(x => pivotTimelineHTML(x, p)).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}`;
+      <div class="quality-workspace"><nav class="quality-index" aria-label="Filtrer les tests par qualité"><button class="btn quality-link active" type="button" data-pivot-filter="all">Tous les tests</button>${qualitiesFor(p).map(q=>`<button class="btn quality-link" type="button" data-pivot-filter="${q.id}"><span>◇ ${esc(q.name)}</span><span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${p.qualityStatus[q.id]||'D'}</span></button>`).join('')}</nav><div id="pivotResults">${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(x => pivotTimelineHTML(x, p)).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}</div></div>`;
+    holder.querySelectorAll('[data-pivot-filter]').forEach(b=>b.onclick=()=>{const records=p.pivots.filter(x=>b.dataset.pivotFilter==='all'||x.qualityId===b.dataset.pivotFilter);holder.querySelector('#pivotResults').innerHTML=records.length?`<div class="timeline">${[...records].reverse().map(x=>pivotTimelineHTML(x,p)).join('')}</div>`:'<div class="empty">Aucun test pivot pour cette qualité.</div>';holder.querySelectorAll('[data-pivot-filter]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});wireRecordActions(holder,p,'pivot');});
     wireRecordActions(holder, p, 'pivot');
     document.getElementById('addPivot').addEventListener('click', () => openPivotModal(p));
   }
@@ -1093,7 +1094,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     return `<div class="stack small"><div><strong>${esc(q?.name || '')}</strong></div><div>${esc(x.test)} : ${esc(x.result)}</div><div><strong>Question :</strong> ${esc(x.question || '—')}</div><div><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
   }
   function sessionRowHTML(s) {
-    return `<tr><td><strong>S${s.n}</strong><br><span class="small">${fmtDate(s.date)}</span></td><td>${esc(s.pain)}</td><td>${esc((s.symptoms||[]).join(', ')||'—')}</td><td>${esc((s.exposure||[]).join(', ')||'—')}</td><td>${esc((s.tolerance||[]).join(', ')||'—')}</td><td>${esc((s.adherence||[]).join(', ')||'—')}</td><td><strong>${esc(s.decision)}</strong>${s.note?`<br><span class="small">${esc(s.note)}</span>`:''}</td><td>${recordActions('session',s.id)}</td></tr>`;
+    return `<article class="card session-card"><div class="session-date"><strong>S${esc(s.n)}</strong>${fmtDate(s.date)}</div><div class="session-body"><h3>${esc((s.exposure||[]).join(' · ') || 'Séance de suivi')}</h3><div class="session-indicators"><span>Douleur ${esc(s.pain ?? '—')}</span>${[['Symptômes',s.symptoms],['Exposition',s.exposure],['Tolérance',s.tolerance],['Observance',s.adherence]].map(([label,values])=>`<span>${label} : ${esc((values||[]).join(' · ')||'—')}</span>`).join('')}</div><div class="session-decision"><strong>Décision :</strong> ${esc(s.decision || '—')}</div>${s.note?`<div class="meta">${esc(s.note)}</div>`:''}${recordActions('session',s.id)}</div></article>`;
   }
   function pivotTimelineHTML(x, p) {
     const q = qualitiesFor(p).find(q => q.id === x.qualityId);
