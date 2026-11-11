@@ -254,6 +254,100 @@ details > .stack { margin-top:12px; }
  .bottom-nav { gap:4px; padding-inline:8px; }
  .nav-btn { font-size:12px; }
 }
+
+/* Align the four clinical workspaces with the validated visual reference. */
+:root { --navy:#163c5c; --navy-2:#245f94; --ink:#101d35; --bg:#f0f4fb; --border:#d6e0ef; --soft:#eef3fb; --shadow:0 2px 6px rgba(23,52,89,.045); }
+.ui-icon { width:24px; height:24px; flex-shrink:0; vertical-align:middle; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.topbar { background:#f9fbff; }
+.topbar .eyebrow { color:#607391; }
+.btn.primary,#newPatientBtn,.hero-actions #quickSessionBtn { background:#0864b8; border-color:#0864b8; }
+.avatar { border-radius:50%; background:#dce7f6; }
+.patients-create { margin-bottom:16px; }
+.patient-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+.patient-filters { margin:0; }
+.patient-filters .chip { border-radius:12px; background:#eaf0fa; }
+.patient-filters .selected { background:var(--navy-2); border-color:var(--navy-2); color:white; }
+.template-filter { width:200px; max-width:100%; }
+.patient-row { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,.8fr) minmax(0,.8fr); gap:16px; align-items:center; min-height:82px; background:#fbfcff; }
+.patient-row .badges { align-items:center; }
+.patient-phases { display:flex; flex-wrap:wrap; gap:12px; font-size:13px; }
+.patient-phases progress { display:block; width:110px; max-width:100%; height:5px; accent-color:#50ad6b; }
+.template-badge { background:#e8e6fc; color:#233654; }
+.patient-card:hover { border-color:#78a6df; background:#edf4ff; }
+.case-hero { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); align-items:center; gap:12px 24px; }
+.case-identity { display:flex; align-items:center; gap:12px; min-width:0; }
+.case-identity > div { min-width:0; }
+.case-hero h2 { font-size:20px; margin:2px 0; }
+.case-hero > div:nth-child(2) { font-size:13px; color:var(--muted); }
+.case-hero .hero-actions { grid-column:1/-1; margin:0; }
+.case-hero .surgery-summary { grid-column:2; grid-row:1; }
+.surgery-summary { display:flex; gap:12px; align-items:center; background:#f0f4fb; border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:13px; }
+.phase-heading { background:linear-gradient(100deg,#245f94,#163c5c); padding:12px 16px; }
+.phase-heading progress { accent-color:#7ac778; }
+.phase-criteria { padding:14px; background:#f6f8fd; border:1px solid var(--border); border-radius:10px; gap:8px; font-size:13px; }
+.phase-criteria h3 { margin:0 0 4px; font-size:15px; }
+.phase-blockers { background:#fff2ec; color:#793b19; border-color:#f5e4dc; font-size:13px; }
+.phase-columns { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.summary-quality { display:grid; grid-template-columns:24px minmax(0,1fr) auto; align-items:center; gap:12px; background:#fbfcff; }
+.summary-quality strong { display:block; font-size:14px; }
+.summary-quality .small { margin-top:2px; font-size:12px; }
+.summary-quality .ui-icon { color:var(--navy-2); }
+.status-letter { font-size:20px; border-radius:9px; min-width:34px; justify-content:center; }
+.quality-workspace { grid-template-columns:minmax(230px,.9fr) minmax(0,1.3fr); }
+.quality-link { background:#fafcff; padding:12px; gap:10px; }
+.quality-link-label { display:flex; align-items:center; gap:12px; min-width:0; }
+.quality-link-label > span { min-width:0; }
+.quality-link small { display:block; font-size:11px; color:var(--muted); font-weight:400; margin-top:3px; }
+.quality-link.active { border-color:#398bdb; background:#edf4ff; box-shadow:inset 0 0 0 1px #c6dfff; }
+.session-timeline { margin-left:10px; padding-left:22px; border-left:2px solid #cfdeed; gap:14px; }
+.session-card { position:relative; grid-template-columns:130px minmax(0,1fr); background:#fcfdff; }
+.session-card::before { content:''; position:absolute; left:-31px; top:24px; width:11px; height:11px; border-radius:50%; background:white; border:3px solid #2467a1; }
+.session-date { border-color:#e0e9f4; }
+.session-date strong { background:#1c65a0; color:white; border-radius:6px; font-size:14px; display:table; padding:2px 8px; margin-bottom:12px; }
+.session-body { grid-template-columns:minmax(0,1fr) minmax(110px,.25fr); gap:10px 12px; }
+.session-body h3 { grid-column:1/-1; }
+.session-indicators { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }
+.session-indicators span { padding:0; background:none; }
+.session-indicators small,.session-decision small { display:block; color:var(--muted); font-size:11px; margin-bottom:4px; }
+.session-indicators strong { font-size:12px; font-weight:500; }
+.session-decision { align-self:start; padding:8px 10px; font-size:13px; }
+.session-body > .meta { grid-column:1/-1; }
+.session-body > .record-actions { grid-column:1/-1; justify-content:flex-end; }
+.pivot-focus { display:grid; gap:12px; background:#fcfdff; }
+.pivot-focus .section-head { margin:0; }
+.pivot-step { padding:12px; border-radius:10px; background:#eef3fa; }
+.pivot-step > .small { margin-bottom:4px; }
+.pivot-arrow { text-align:center; color:var(--navy-2); font-size:22px; line-height:1; }
+.pivot-focus .notice { background:#fff3e7; border-color:#f5dfc6; }
+.nav-brand { display:none; }
+@media(min-width:1000px) {
+ .bottom-nav { background:#163c5c; border:0; padding-top:20px; gap:14px; }
+ .nav-brand { display:grid; place-items:center; height:44px; margin-bottom:12px; color:#b4d6f5; }
+ .nav-brand .ui-icon { width:36px; height:36px; }
+ .nav-btn { color:#d9e7f8; }
+ .nav-btn.active { background:#34658f; color:white; }
+ #newPatientBtn { background:#245578; }
+ .nav-btn:hover { background:#2d5c82; }
+}
+@media(max-width:999px) { .nav-icon .ui-icon { width:18px; height:18px; } }
+@media(max-width:900px) { .session-indicators { grid-template-columns:repeat(3,minmax(0,1fr)); } .session-body { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:700px) {
+ .patient-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+ .patient-row .patient-line { grid-column:1/-1; }
+ .patient-phases { grid-column:1/-1; }
+ .patient-toolbar { align-items:stretch; }
+ .template-filter { width:100%; }
+ .case-hero,.phase-columns,.quality-workspace { grid-template-columns:minmax(0,1fr); }
+ .case-hero .surgery-summary { grid-column:auto; grid-row:auto; }
+ .quality-index { grid-template-columns:minmax(0,1fr); }
+ .session-card { grid-template-columns:64px minmax(0,1fr); gap:10px; }
+ .session-timeline { margin-left:5px; padding-left:14px; }
+ .session-card::before { left:-23px; }
+ .session-indicators { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+ .session-date strong { padding-inline:5px; }
+ .quality-summary { grid-template-columns:minmax(0,1fr); }
+}
   </style>
   <title>Cockpit Clinique</title>
 </head>
@@ -271,12 +365,12 @@ details > .stack { margin-top:12px; }
 
   <main id="app" class="app-shell" aria-live="polite"></main>
 
-  <nav class="bottom-nav" aria-label="Navigation principale">
-    <button class="nav-btn active" data-route="patients" type="button"><span class="nav-icon" aria-hidden="true">▦</span>Patients</button>
-    <button class="nav-btn" data-route="archives" type="button"><span class="nav-icon" aria-hidden="true">▤</span>Archives</button>
-    <button class="nav-btn case-nav hidden" data-case-tab="sessions" type="button"><span class="nav-icon" aria-hidden="true">≡</span>Séances</button>
-    <button class="nav-btn case-nav hidden" data-case-tab="qualities" type="button"><span class="nav-icon" aria-hidden="true">◇</span>Qualités</button>
-    <button class="nav-btn" id="newPatientBtn" type="button"><span class="nav-icon" aria-hidden="true">＋</span>Patient</button>
+  <nav class="bottom-nav" aria-label="Navigation principale"><div class="nav-brand" data-icon="logo" aria-hidden="true"></div>
+    <button class="nav-btn active" data-route="patients" type="button"><span class="nav-icon" data-icon="patients" aria-hidden="true"></span>Patients</button>
+    <button class="nav-btn" data-route="archives" type="button"><span class="nav-icon" data-icon="archive" aria-hidden="true"></span>Archives</button>
+    <button class="nav-btn case-nav hidden" data-case-tab="sessions" type="button"><span class="nav-icon" data-icon="sessions" aria-hidden="true"></span>Séances</button>
+    <button class="nav-btn case-nav hidden" data-case-tab="qualities" type="button"><span class="nav-icon" data-icon="qualities" aria-hidden="true"></span>Qualités</button>
+    <button class="nav-btn" id="newPatientBtn" type="button"><span class="nav-icon" data-icon="plus" aria-hidden="true"></span>Patient</button>
   </nav>
 
   <dialog id="modal" class="modal">
@@ -288,6 +382,9 @@ details > .stack { margin-top:12px; }
   <script>
 (() => {
   'use strict';
+
+  function icon(name) { const paths = {"patients": "<path d=\"M20 21v-2a7 7 0 0 0-14 0v2M13 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z\"/>", "sessions": "<rect x=\"4\" y=\"5\" width=\"16\" height=\"16\" rx=\"2\"/><path d=\"M8 3v4m8-4v4M4 11h16m-11 5h6m-3-3v6\"/>", "qualities": "<path d=\"m12 3 10 5-10 5L2 8l10-5Zm-10 9 10 5 10-5M2 16l10 5 10-5\"/>", "settings": "<path d=\"m9 3-1 3-3 1v4l-2 1 2 2v4l3 1 1 3h5l1-3 3-1v-4l2-2-2-1V7l-3-1-1-3H9Z\"/><circle cx=\"11.5\" cy=\"12\" r=\"3\"/>", "strength": "<path d=\"M3 9v6m4-9v12m10-12v12m4-9v6M7 12h10M3 7h4v10H3V7Zm14 0h4v10h-4V7Z\"/>", "mobility": "<path d=\"m15 3-3 5 3 4-2 9m-1-13-5 5 2 4m6-5 5 2\"/><circle cx=\"17\" cy=\"3\" r=\"1\"/>", "capacity": "<rect x=\"3\" y=\"7\" width=\"17\" height=\"10\" rx=\"2\"/><path d=\"M23 10v4M7 10v4m4-4v4m4-4v4\"/>", "sensorimotor": "<path d=\"M12 3v17m-7 1h14M4 7h16M5 7l-4 8h8L5 7Zm14 0-4 8h8l-4-8Z\"/>", "ssc": "<path d=\"M1 12h5l3-8 5 16 3-8h6\"/>", "function": "<circle cx=\"16\" cy=\"4\" r=\"2\"/><path d=\"m13 8-4 4 4 3-4 7m4-14 4 5 5-1m-9 3 5 2-1 5M9 12H3\"/>", "archive": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"5\" rx=\"1\"/><path d=\"M5 9v12h14V9m-10 4h6\"/>", "plus": "<path d=\"M12 4v16M4 12h16\"/>", "logo": "<path d=\"m2 20 7-15 4 7M8 20 17 3l6 14h-8\"/>"}; return `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.qualities}</svg>`; }
+
 
   const STORAGE_KEY = 'cockpit_clinique_v1_data';
   const CURRENT_VERSION = 4;
@@ -695,16 +792,18 @@ details > .stack { margin-top:12px; }
     pageTitle.textContent = archived ? 'Tous les patients' : 'Patients actifs';
     const list = db.patients.filter(p => archived || casesFor(p.id).some(c => c.status === 'active'));
     app.innerHTML = `<div class="search"><input id="searchInput" class="input" type="search" placeholder="Rechercher un patient…" /></div>
-      <div class="section-head"><div><h2>${archived ? 'Tous les patients · avec ou sans cas' : 'Suivis en cours'}</h2><p id="patientCount">${list.length} patient(s)</p></div></div><div class="patient-filters" role="group" aria-label="Filtrer les patients">${[['all','Tous'],['active','Actifs'],['archived','Archivés']].map(([id,label])=>`<button type="button" class="chip ${id===(archived?'all':'active')?'selected':''}" data-patient-filter="${id}" aria-pressed="${id===(archived?'all':'active')}">${label}</button>`).join('')}</div><div id="patientList" class="stack"></div>`;
+      <div class="section-head"><div><h2>${archived ? 'Tous les patients · avec ou sans cas' : 'Suivis en cours'}</h2><p id="patientCount">${list.length} patient(s)</p></div></div><button class="btn primary patients-create" id="listNewPatient" type="button">+ Nouveau patient</button><div class="patient-toolbar"><div class="patient-filters" role="group" aria-label="Filtrer les patients">${[['all','Tous'],['active','Actifs'],['archived','Archivés']].map(([id,label])=>`<button type="button" class="chip ${id===(archived?'all':'active')?'selected':''}" data-patient-filter="${id}" aria-pressed="${id===(archived?'all':'active')}">${label}</button>`).join('')}</div><label class="template-filter"><span class="sr-only">Filtrer par template</span><select id="templateFilter" class="select"><option value="">Tous les templates</option>${Object.values(TEMPLATES).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label></div><div id="patientList" class="stack"></div>`;
     const holder = document.getElementById('patientList');
     let patientFilter = archived ? 'all' : 'active';
     const renderList = query => {
-      holder.innerHTML = db.patients.filter(p => patientFilter === 'all' || casesFor(p.id).some(c=>c.status === patientFilter)).filter(p => [p.name,...casesFor(p.id).flatMap(c => [c.title,c.subtype,c.objective,c.targetFunction])].join(' ').toLowerCase().includes(query.toLowerCase())).map(p =>
-        `<article class="card patient-card" role="button" tabindex="0" data-patient="${esc(p.id)}"><div class="patient-line"><span class="avatar" aria-hidden="true">${esc(p.name.split(/\s+/).map(n=>n[0]).slice(0,2).join(''))}</span><div class="patient-info"><h3>${esc(p.name)}</h3><div class="meta">${casesFor(p.id).filter(c => c.status === 'active').length} cas actif(s) · ${casesFor(p.id).filter(c => c.status === 'archived').length} cas archivé(s)</div><div class="badges">${[...new Set(casesFor(p.id).map(c=>templateFor(c).name))].map(name=>`<span class="badge">${esc(name)}</span>`).join('')}</div></div></div></article>`).join('') || '<div class="empty">Aucun patient.</div>';
+      holder.innerHTML = db.patients.filter(p=>!document.getElementById('templateFilter').value || casesFor(p.id).some(c=>c.templateId===document.getElementById('templateFilter').value)).filter(p => patientFilter === 'all' || casesFor(p.id).some(c=>c.status === patientFilter)).filter(p => [p.name,...casesFor(p.id).flatMap(c => [c.title,c.subtype,c.objective,c.targetFunction])].join(' ').toLowerCase().includes(query.toLowerCase())).map(p =>
+        `<article class="card patient-card patient-row" role="button" tabindex="0" data-patient="${esc(p.id)}"><div class="patient-line"><span class="avatar" aria-hidden="true">${esc(p.name.split(/\s+/).map(n=>n[0]).slice(0,2).join(''))}</span><div class="patient-info"><h3>${esc(p.name)}</h3><div class="meta">${esc(p.note||`${casesFor(p.id).filter(c=>c.status==='active').length} cas actif(s) · ${casesFor(p.id).filter(c=>c.status==='archived').length} cas archivé(s)`)}</div></div></div><div class="badges">${[...new Set(casesFor(p.id).map(c=>templateFor(c).name))].map(name=>`<span class="badge template-badge">${esc(name)}</span>`).join('')}</div><div class="badges">${casesFor(p.id).some(c=>c.status==='active')?'<span class="badge c">● Actif</span>':'<span class="badge d">Archivé / sans cas actif</span>'}</div><div class="patient-phases">${casesFor(p.id).filter(c=>phaseDefinition(c)).map(c=>{const ph=phaseDefinition(c),criteria=evaluatedCriteria(c,ph).filter(x=>x.state!=='na'),passed=criteria.filter(x=>x.state==='pass').length;return `<div><strong>Phase ${ph.id}</strong><div class="small">${passed}/${criteria.length} critères</div><progress value="${passed}" max="${criteria.length||1}" aria-label="Critères validés"></progress></div>`;}).join('')}</div></article>`).join('') || '<div class="empty">Aucun patient.</div>';
       document.getElementById('patientCount').textContent=holder.querySelectorAll('[data-patient]').length+' patient(s)';
       wireCards(holder, '[data-patient]', el => setRoute('patient',el.dataset.patient));
     };
     holder.parentElement.querySelectorAll('[data-patient-filter]').forEach(b=>b.onclick=()=>{patientFilter=b.dataset.patientFilter;holder.parentElement.querySelectorAll('[data-patient-filter]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});renderList(document.getElementById('searchInput').value);});
+    document.getElementById('listNewPatient').onclick=()=>openPatientModal();
+    document.getElementById('templateFilter').onchange=()=>renderList(document.getElementById('searchInput').value);
     renderList(''); document.getElementById('searchInput').addEventListener('input',e => renderList(e.target.value));
   }
   function renderPatientProfile() {
@@ -726,15 +825,15 @@ details > .stack { margin-top:12px; }
     const p = db.cases.find(c => c.id === route.caseId && c.patientId === route.patientId);
     if (!p) return setRoute('patient', route.patientId);
     const patient = getPatient(p.patientId);
-    pageTitle.textContent = patient.name;
+    pageTitle.textContent = ({overview:'Synthèse du cas',sessions:'Séances',qualities:'Qualités / Tests pivots',pivots:'Tests pivots'})[route.tab] || 'Synthèse du cas';
     const tabs = [
       ['overview','Synthèse'], ['qualities','Qualités'], ['sessions','Séances'], ['pivots','Tests pivots']
     ];
     app.innerHTML = `
-      <section class="hero">
-        <div><div class="meta">${esc(templateFor(p).name)} · ${esc(p.subtype)} · ${esc(p.side || 'Côté non renseigné')}</div><h2>${esc(p.title)}</h2><div>${esc(patient.name)}${p.status === 'archived' ? ' · Cas archivé' : ''}</div></div>
+      <section class="hero case-hero">
+        <div class="case-identity"><span class="avatar" aria-hidden="true">${esc(patient.name.split(/\s+/).map(n=>n[0]).slice(0,2).join(''))}</span><div><div class="meta">${esc(templateFor(p).name)} · ${esc(p.subtype)} · ${esc(p.side || 'Côté non renseigné')}</div><h2>${esc(p.title)}</h2><div>${esc(patient.name)}${p.status === 'archived' ? ' · Cas archivé' : ''}</div></div></div>
         <div>${esc(p.objective || 'Objectif non renseigné')}</div>
-        ${templateFor(p).phases?`<div class="meta">Fonction cible : ${esc(p.targetFunction||'—')}</div>`:''}
+        ${templateFor(p).phases?`<div class="surgery-summary">${icon('sessions')}<div><strong>Chirurgie · ${esc(p.subtype)}</strong><div class="small">${p.caseData?.operationDate?fmtDate(p.caseData.operationDate):'Date non renseignée'} · ${esc(p.caseData?.surgeon||'Chirurgien non renseigné')}</div></div></div>`:''}
         <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button>${p.status === 'active' ? '<button class="btn case-archive" id="archiveDirectBtn" type="button">Archiver le cas</button>' : ''}</div>
       </section>
       ${phasePanelHTML(p)}
@@ -769,7 +868,7 @@ details > .stack { margin-top:12px; }
         ${p.constraints ? `<div class="small">Contraintes / notes : ${esc(p.constraints)}</div>` : ''}</section>`}
 
       <section class="card"><div class="section-head"><h2>Carte clinique</h2><button id="goQualities" class="btn secondary">Ouvrir les qualités</button></div>
-        <div class="quality-summary">${qualitiesFor(p).map(q => `<div><span class="badge ${(p.qualityStatus[q.id] || 'D').toLowerCase()}">${esc(q.name)} — ${p.qualityStatus[q.id] || 'D'}</span>${limitingSummary(p,q)}${p.decisionUnresolved?.[q.id] ? '<div class="small">Décision supprimée — statut à réévaluer.</div>' : ''}</div>`).join('')}</div></section>
+        <div class="quality-summary">${qualitiesFor(p).map(q => `<div class="summary-quality">${icon(q.id)}<div><strong>${esc(q.name)}</strong>${limitingSummary(p,q)}</div><span class="badge status-letter ${(p.qualityStatus[q.id] || 'D').toLowerCase()}">${p.qualityStatus[q.id] || 'D'}</span>${p.decisionUnresolved?.[q.id] ? '<div class="small">Décision supprimée — statut à réévaluer.</div>' : ''}</div>`).join('')}</div></section>
       ${lastFunction ? `<section class="card"><h2>Dernière exposition fonctionnelle</h2><div>${fmtDate(lastFunction.date)} · ${esc(lastFunction.summary || lastFunction.values?.task || lastFunction.test || '')}</div><div class="small">${esc([lastFunction.values?.duration ? lastFunction.values.duration+' min' : '',lastFunction.values?.distance ? lastFunction.values.distance+' km' : '',lastFunction.values?.reaction,lastFunction.result].filter(Boolean).join(' · '))}</div></section>` : ''}
       ${phaseContextHTML(p)}
       ${change ? `<div class="small">Dernier changement : ${esc(qualitiesFor(p).find(q => q.id === change.qualityId)?.name || change.qualityId)} · ${esc(change.from)} → ${esc(change.to)} · ${fmtDate(change.date)}</div>` : ''}
@@ -782,9 +881,18 @@ details > .stack { margin-top:12px; }
     const recommended=profileFor(p).qualities||[],primary=qualitiesFor(p).filter(q=>recommended.includes(q.id)||p.pivots.some(m=>m.qualityId===q.id)||(p.profileExtras?.[q.id]||[]).length),secondary=qualitiesFor(p).filter(q=>!primary.includes(q));
     return primary.map(q=>qualityHTML(p,q)).join('')+(secondary.length?`<details><summary class="btn secondary">+ Autres qualités / mesures</summary><div class="stack">${secondary.map(q=>qualityHTML(p,q)).join('')}</div></details>`:'');
   }
+  function pivotFocusHTML(p,q) {
+    const latest=latestMeasurement(p,q.id),status=p.qualityStatus[q.id]||'D';
+    return `<section class="card pivot-focus"><div class="section-head"><h3>${icon('qualities')} Test pivot</h3><span class="badge">${esc(q.name)}</span></div><div class="pivot-step"><div class="small">Test / mesure</div><strong>${esc(latest?.test||q.pivot)}</strong>${latest?`<div class="small">${fmtDate(latest.date)}</div>`:''}</div><div class="pivot-step"><div class="small">Mesure</div>${latest?`<div>${esc(latest.result||latest.summary||'')}</div>${pivotMetricsHTML(p,latest)}`:'<div class="meta">Aucune mesure enregistrée pour cette qualité.</div>'}</div><div class="pivot-arrow" aria-hidden="true">↓</div><div class="notice"><strong>Interprétation / décision clinique</strong><div>${latest?.proposedStatus?`Statut proposé : ${esc(latest.proposedStatus)} · ${esc(latest.referenceUsed||'')}`:'Aucun seuil validé disponible pour cette mesure — décision clinique requise.'}</div>${latest?.decision?`<div>${esc(latest.decision)}</div>`:''}</div><div class="pivot-arrow" aria-hidden="true">↓</div><div class="pivot-step"><div class="small">État actuel de la qualité</div><strong>${esc(q.name)}</strong> <span class="badge status-letter ${status.toLowerCase()}">${status}</span><div class="small">${statusLabel(status)}${p.qualityOverrides?.[q.id]?' · Statut global manuel':''}</div></div><div class="btn-row"><button class="btn primary" type="button" data-focus-add="${q.id}">+ Nouvelle mesure</button>${latest?`<button class="btn secondary" type="button" data-focus-edit="${esc(latest.id)}">Modifier la mesure</button>`:''}</div></section>`;
+  }
+  function wirePivotFocus(holder,p) {
+    holder.querySelectorAll('[data-focus-add]').forEach(b=>b.onclick=()=>openPivotModal(p,null,b.dataset.focusAdd));
+    holder.querySelectorAll('[data-focus-edit]').forEach(b=>b.onclick=()=>{const record=p.pivots.find(x=>x.id===b.dataset.focusEdit);if(record)openPivotModal(p,record);});
+  }
   function renderQualities(holder, p) {
-    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>${esc(templateFor(p).guidance || '')}</p></div></div><div class="quality-workspace"><nav class="quality-index" aria-label="Qualités cliniques">${qualitiesFor(p).map(q=>`<button class="btn quality-link" type="button" data-quality-link="${q.id}"><span>◇ ${esc(q.name)}</span><span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${p.qualityStatus[q.id]||'D'}</span></button>`).join('')}</nav><div class="stack">${qualityCardsHTML(p)}</div></div>`;
-    holder.querySelectorAll('[data-quality-link]').forEach(b=>b.onclick=()=>{const target=holder.querySelector('#quality-'+b.dataset.qualityLink);if(!target)return;for(let el=target.parentElement;el && el!==holder;el=el.parentElement)if(el.tagName==='DETAILS')el.open=true;target.scrollIntoView({block:'start'});holder.querySelectorAll('[data-quality-link]').forEach(x=>x.classList.toggle('active',x===b));});
+    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>${esc(templateFor(p).guidance || '')}</p></div></div><div class="quality-workspace"><nav class="quality-index" aria-label="Qualités cliniques">${qualitiesFor(p).map(q=>`<button class="btn quality-link" type="button" data-quality-link="${q.id}"><span class="quality-link-label">${icon(q.id)}<span>${esc(q.name)}<small>${esc(q.pivot)}</small></span></span><span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${p.qualityStatus[q.id]||'D'}</span></button>`).join('')}</nav><div class="stack"><div id="selectedPivotPanel">${pivotFocusHTML(p,qualitiesFor(p)[0])}</div>${qualityCardsHTML(p)}</div></div>`;
+    wirePivotFocus(holder,p);
+    holder.querySelectorAll('[data-quality-link]').forEach((b,index)=>{b.classList.toggle('active',index===0);b.setAttribute('aria-pressed',String(index===0));b.onclick=()=>{const q=qualitiesFor(p).find(q=>q.id===b.dataset.qualityLink);holder.querySelector('#selectedPivotPanel').innerHTML=pivotFocusHTML(p,q);wirePivotFocus(holder.querySelector('#selectedPivotPanel'),p);holder.querySelectorAll('[data-quality-link]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});};});
     wireMeasurements(holder, p);
     holder.querySelectorAll('.status-btn').forEach(btn => btn.addEventListener('click', () => {
       const qid = btn.dataset.quality, next = btn.dataset.status, old = p.qualityStatus[qid] || 'D';
@@ -1080,8 +1188,8 @@ details > .stack { margin-top:12px; }
 
   function renderPivots(holder, p) {
     holder.innerHTML = `<div class="section-head"><div><h2>Tests pivots</h2><p>Un test doit répondre à une question clinique et pouvoir modifier la décision.</p></div><button id="addPivot" class="btn primary" type="button">+ Pivot</button></div>
-      <div class="quality-workspace"><nav class="quality-index" aria-label="Filtrer les tests par qualité"><button class="btn quality-link active" type="button" data-pivot-filter="all">Tous les tests</button>${qualitiesFor(p).map(q=>`<button class="btn quality-link" type="button" data-pivot-filter="${q.id}"><span>◇ ${esc(q.name)}</span><span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${p.qualityStatus[q.id]||'D'}</span></button>`).join('')}</nav><div id="pivotResults">${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(x => pivotTimelineHTML(x, p)).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}</div></div>`;
-    holder.querySelectorAll('[data-pivot-filter]').forEach(b=>b.onclick=()=>{const records=p.pivots.filter(x=>b.dataset.pivotFilter==='all'||x.qualityId===b.dataset.pivotFilter);holder.querySelector('#pivotResults').innerHTML=records.length?`<div class="timeline">${[...records].reverse().map(x=>pivotTimelineHTML(x,p)).join('')}</div>`:'<div class="empty">Aucun test pivot pour cette qualité.</div>';holder.querySelectorAll('[data-pivot-filter]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});wireRecordActions(holder,p,'pivot');});
+      <div class="quality-workspace"><nav class="quality-index" aria-label="Filtrer les tests par qualité"><button class="btn quality-link active" type="button" data-pivot-filter="all">Tous les tests</button>${qualitiesFor(p).map(q=>`<button class="btn quality-link" type="button" data-pivot-filter="${q.id}"><span class="quality-link-label">${icon(q.id)}<span>${esc(q.name)}<small>${esc(q.pivot)}</small></span></span><span class="badge ${(p.qualityStatus[q.id]||'D').toLowerCase()}">${p.qualityStatus[q.id]||'D'}</span></button>`).join('')}</nav><div id="pivotResults">${p.pivots.length ? `<div class="timeline">${[...p.pivots].reverse().map(x => pivotTimelineHTML(x, p)).join('')}</div>` : '<div class="empty">Aucun test pivot enregistré.</div>'}</div></div>`;
+    holder.querySelectorAll('[data-pivot-filter]').forEach(b=>b.onclick=()=>{const records=p.pivots.filter(x=>b.dataset.pivotFilter==='all'||x.qualityId===b.dataset.pivotFilter);const q=qualitiesFor(p).find(q=>q.id===b.dataset.pivotFilter);holder.querySelector('#pivotResults').innerHTML=(q?pivotFocusHTML(p,q):'')+(records.length?`<div class="timeline">${[...records].reverse().map(x=>pivotTimelineHTML(x,p)).join('')}</div>`:'<div class="empty">Aucun test pivot pour cette qualité.</div>');wirePivotFocus(holder.querySelector('#pivotResults'),p);holder.querySelectorAll('[data-pivot-filter]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-pressed',String(x===b));});wireRecordActions(holder,p,'pivot');});
     wireRecordActions(holder, p, 'pivot');
     document.getElementById('addPivot').addEventListener('click', () => openPivotModal(p));
   }
@@ -1094,7 +1202,7 @@ details > .stack { margin-top:12px; }
     return `<div class="stack small"><div><strong>${esc(q?.name || '')}</strong></div><div>${esc(x.test)} : ${esc(x.result)}</div><div><strong>Question :</strong> ${esc(x.question || '—')}</div><div><strong>Décision :</strong> ${esc(x.decision || '—')}</div></div>`;
   }
   function sessionRowHTML(s) {
-    return `<article class="card session-card"><div class="session-date"><strong>S${esc(s.n)}</strong>${fmtDate(s.date)}</div><div class="session-body"><h3>${esc((s.exposure||[]).join(' · ') || 'Séance de suivi')}</h3><div class="session-indicators"><span>Douleur ${esc(s.pain ?? '—')}</span>${[['Symptômes',s.symptoms],['Exposition',s.exposure],['Tolérance',s.tolerance],['Observance',s.adherence]].map(([label,values])=>`<span>${label} : ${esc((values||[]).join(' · ')||'—')}</span>`).join('')}</div><div class="session-decision"><strong>Décision :</strong> ${esc(s.decision || '—')}</div>${s.note?`<div class="meta">${esc(s.note)}</div>`:''}${recordActions('session',s.id)}</div></article>`;
+    return `<article class="card session-card"><div class="session-date"><strong>S${esc(s.n)}</strong>${fmtDate(s.date)}</div><div class="session-body"><h3>${esc((s.exposure||[]).join(' · ') || 'Séance de suivi')}</h3><div class="session-indicators"><span><small>Douleur</small><strong>${esc(s.pain ?? '—')}</strong></span>${[['Symptômes',s.symptoms],['Exposition',s.exposure],['Tolérance',s.tolerance],['Observance',s.adherence]].map(([label,values])=>`<span><small>${label}</small><strong>${esc((values||[]).join(' · ')||'—')}</strong></span>`).join('')}</div><div class="session-decision"><small>Décision</small><strong> ${esc(s.decision || '—')}</strong></div>${s.note?`<div class="meta">${esc(s.note)}</div>`:''}${recordActions('session',s.id)}</div></article>`;
   }
   function pivotTimelineHTML(x, p) {
     const q = qualitiesFor(p).find(q => q.id === x.qualityId);
@@ -1347,6 +1455,7 @@ details > .stack { margin-top:12px; }
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 
+  document.querySelectorAll('[data-icon]').forEach(el=>el.innerHTML=icon(el.dataset.icon));
   render();
 })();
 
