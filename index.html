@@ -381,6 +381,11 @@ details > .stack { margin-top:12px; }
 .session-score > span { flex-shrink:0; color:var(--muted); }
 .session-decision-input { background:#f3f7fd; padding:12px; border-radius:10px; }
 @media(max-width:520px) { .session-flow-card { grid-template-columns:74px minmax(0,1fr); } .session-end-kpis { grid-template-columns:minmax(0,1fr); gap:8px; } .session-kpi { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; } .session-kpi small { margin:0; } }
+
+/* Open sessions expose only arrival information until check-out. */
+.session-flow-card.session-open { border-color:#80acd7; background:#f7fbff; }
+.session-open-badge { color:#225e91; background:#e3effb; }
+.session-flow-card .session-date > .badge { margin-top:8px; font-size:11px; padding:3px 6px; }
   </style>
   <title>Cockpit Clinique</title>
 </head>
@@ -867,7 +872,7 @@ details > .stack { margin-top:12px; }
         <div class="case-identity"><span class="avatar" aria-hidden="true">${esc(patient.name.split(/\s+/).map(n=>n[0]).slice(0,2).join(''))}</span><div><div class="meta">${esc(templateFor(p).name)} · ${esc(p.subtype)} · ${esc(p.side || 'Côté non renseigné')}</div><h2>${esc(p.title)}</h2><div>${esc(patient.name)}${p.status === 'archived' ? ' · Cas archivé' : ''}</div></div></div>
         <div>${esc(p.objective || 'Objectif non renseigné')}</div>
         ${templateFor(p).phases?`<div class="surgery-summary">${icon('sessions')}<div><strong>Chirurgie · ${esc(p.subtype)}</strong><div class="small">${p.caseData?.operationDate?fmtDate(p.caseData.operationDate):'Date non renseignée'} · ${esc(p.caseData?.surgeon||'Chirurgien non renseigné')}</div></div></div>`:''}
-        <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button>${p.status === 'active' ? '<button class="btn case-archive" id="archiveDirectBtn" type="button">Archiver le cas</button>' : ''}</div>
+        <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">${p.sessions.some(sessionIsOpen)?'Reprendre la séance en cours':'+ Démarrer une séance'}</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button>${p.status === 'active' ? '<button class="btn case-archive" id="archiveDirectBtn" type="button">Archiver le cas</button>' : ''}</div>
       </section>
       ${phasePanelHTML(p)}
       <div class="tabs" style="margin:14px 0">
@@ -1212,11 +1217,14 @@ details > .stack { margin-top:12px; }
   function lastSessionNumber(p) {
     return Math.max(0, ...p.sessions.map(s => Number(s.n) || 0), ...p.pivots.map(x => Number(x.sessionNumber) || 0));
   }
+  function sessionIsOpen(s) { return s.status==='open' || s.status==='inProgress'; }
   function renderSessions(holder, p) {
-    holder.innerHTML = `<div class="section-head"><div><h2>Suivi longitudinal</h2><p>Tendances cliniques ; les chiffres détaillés restent dans les pivots.</p></div><button id="addSession" class="btn primary" type="button">+ Séance</button></div>
+    const open=p.sessions.find(sessionIsOpen);
+    holder.innerHTML = `<div class="section-head"><div><h2>Suivi des séances</h2><p>Check-in au début · Check-out en fin de séance.</p></div><button id="addSession" class="btn primary" type="button">${open?'Reprendre / clôturer la séance en cours':'+ Démarrer une séance'}</button></div>
       ${p.sessions.length ? `<div class="session-timeline">${[...p.sessions].reverse().map(sessionRowHTML).join('')}</div>` : '<div class="empty">Aucune séance enregistrée.</div>'}`;
     wireRecordActions(holder, p, 'session');
-    document.getElementById('addSession').addEventListener('click', () => openSessionModal(p));
+    holder.querySelectorAll('[data-close-session]').forEach(b=>b.onclick=()=>{const record=p.sessions.find(s=>s.id===b.dataset.closeSession);if(record)openSessionModal(p,record,'checkout');});
+    document.getElementById('addSession').onclick=()=>open?openSessionModal(p,open,'checkout'):openSessionModal(p);
   }
 
   function renderPivots(holder, p) {
@@ -1254,9 +1262,9 @@ details > .stack { margin-top:12px; }
     return rows?`<details class="session-legacy"><summary>Données de l’ancienne séance</summary><div class="small">Informations originales conservées, sans conversion automatique des valeurs qualitatives.</div><div class="stack small">${rows}</div></details>`:'';
   }
   function sessionRowHTML(s) {
-    const v=sessionView(s),goalClass=({'Oui':'c','Partiellement':'b','Non':'a'})[v.goalAchievement]||'d';
+    const open=sessionIsOpen(s),v=sessionView(s),goalClass=({'Oui':'c','Partiellement':'b','Non':'a'})[v.goalAchievement]||'d';
     const checkin=[v.evolution,v.reaction24h?'Réaction 24 h : '+v.reaction24h:'',v.adherenceCheckin?'Observance : '+v.adherenceCheckin:''].filter(Boolean).join(' · ');
-    return `<article class="card session-card session-flow-card"><div class="session-date"><strong>S${esc(s.n)}</strong><time datetime="${esc(s.date)}">${fmtDate(s.date)}</time></div><div class="session-body session-workflow"><div class="session-checkin"><div class="small">Check-in</div><div>${esc(checkin||'Non renseigné')}</div>${v.note?`<div class="meta">${esc(v.note)}</div>`:''}</div><div class="session-work"><div class="small">Travail / exposition du jour</div><h3>${esc(v.sessionWork||'Non renseigné')}</h3></div><div class="session-end-kpis"><div class="session-kpi"><small>Douleur max</small><strong>${v.painMax==null?'—':esc(v.painMax)+'/10'}</strong></div><div class="session-kpi"><small>RPE</small><strong>${v.rpe==null?'—':esc(v.rpe)+'/10'}</strong></div><div class="session-kpi"><small>Objectif du jour</small><span class="badge ${goalClass}">${v.goalAchievement==='Oui'?'✓ ':''}${esc(v.goalAchievement||'Non renseigné')}</span></div></div><div class="session-decision"><small>Décision / prochaine étape</small><strong>${esc(v.decision||'Non renseignée')}</strong></div>${legacySessionHTML(s)}${recordActions('session',s.id)}</div></article>`;
+    return `<article class="card session-card session-flow-card ${open?'session-open':''}"><div class="session-date"><strong>S${esc(s.n)}</strong><time datetime="${esc(s.date)}">${fmtDate(s.date)}</time><span class="badge ${open?'session-open-badge':'d'}">${open?'En cours':'Terminée'}</span></div><div class="session-body session-workflow"><div class="session-checkin"><div class="small">Check-in</div><div>${esc(checkin||'Non renseigné')}</div>${v.note?`<div class="meta">${esc(v.note)}</div>`:''}</div>${open?`<div class="btn-row"><button class="btn primary" type="button" data-close-session="${esc(s.id)}">Clôturer la séance</button></div>`:`<div class="session-work"><div class="small">Travail / exposition du jour</div><h3>${esc(v.sessionWork||'Non renseigné')}</h3></div><div class="session-end-kpis"><div class="session-kpi"><small>Douleur max</small><strong>${v.painMax==null?'—':esc(v.painMax)+'/10'}</strong></div><div class="session-kpi"><small>RPE séance</small><strong>${v.rpe==null?'—':esc(v.rpe)+'/10'}</strong></div><div class="session-kpi"><small>Objectif du jour</small><span class="badge ${goalClass}">${v.goalAchievement==='Oui'?'✓ ':''}${esc(v.goalAchievement||'Non renseigné')}</span></div></div><div class="session-decision"><small>Décision / prochaine étape</small><strong>${esc(v.decision||'Non renseignée')}</strong></div>`}${legacySessionHTML(s)}${open?recordActions('session',s.id).replace('>Modifier</button>','>Modifier le check-in</button>'):recordActions('session',s.id)}</div></article>`;
   }
 
   function pivotTimelineHTML(x, p) {
@@ -1329,30 +1337,33 @@ details > .stack { margin-top:12px; }
   function sessionChoice(name,label,options,value='') {
     return `<fieldset class="session-choice"><legend>${esc(label)}</legend><input type="hidden" name="${name}" value="${esc(value)}" /><div class="chips" data-session-choice="${name}">${options.map(o=>`<button class="chip ${value===o?'selected':''}" type="button" data-value="${esc(o)}" aria-pressed="${value===o}"${name==='goalAchievement'?` data-goal="${esc(o)}"`:''}>${esc(o)}</button>`).join('')}</div></fieldset>`;
   }
-  function openSessionModal(p, existing=null) {
+  function openSessionModal(p, existing=null, mode=null) {
+    if(!existing){const open=p.sessions.find(sessionIsOpen);if(open)return openSessionModal(p,open,'checkout');}
+    mode=mode || (existing?(sessionIsOpen(existing)?'checkin':'edit'):'checkin');
+    const checkin=mode!=='checkout',checkout=mode!=='checkin';
     const n=existing?existing.n:lastSessionNumber(p)+1,v=sessionView(existing||{});
     modalContent.innerHTML=`<form id="sessionForm" class="modal-inner">
-      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Séance S${esc(n)}</div><h2>Suivi de séance</h2></div><button class="close-btn" type="button" data-close aria-label="Fermer">×</button></div>
-      <section class="session-form-block" aria-labelledby="sessionCheckinTitle"><h3 id="sessionCheckinTitle">Check-in</h3>
+      <div class="modal-head"><div><div class="eyebrow" style="color:var(--muted)">Séance S${esc(n)}</div><h2>${mode==='checkout'?'Fin de séance':mode==='checkin'?'Check-in':'Modifier la séance'}</h2></div><button class="close-btn" type="button" data-close aria-label="Fermer">×</button></div>
+      ${checkin?`<section class="session-form-block" aria-labelledby="sessionCheckinTitle"><h3 id="sessionCheckinTitle">Check-in</h3>
         ${sessionChoice('evolution','Évolution depuis la dernière séance',['Mieux','Stable','Moins bien'],v.evolution)}
         ${sessionChoice('reaction24h','Réaction dans les 24 h après la dernière séance / exposition',['Bonne','Acceptable','Mauvaise'],v.reaction24h)}
         ${sessionChoice('adherenceCheckin','Observance',['Fait','Partiel','Non fait'],v.adherenceCheckin)}
         <label class="label"><span>Nouveau / commentaire <span class="small">· Facultatif</span></span><textarea name="note" class="textarea" rows="2" placeholder="Nouvelle activité, fatigue, reprise d’entraînement…">${esc(v.note)}</textarea></label>
         ${legacySessionHTML(existing||{})}
         ${(templateFor(p).sessionFields||[]).length?`<details class="session-clinical"><summary>Marqueurs de suivi postopératoire</summary><div class="form-grid two">${measurementFields(templateFor(p).sessionFields,existing?.clinicalValues||{},'clinicalValues')}</div></details>`:''}
-      </section>
-      <section class="session-form-block"><label class="label">Travail / exposition du jour<input name="sessionWork" class="input" value="${esc(v.sessionWork)}" placeholder="Presse unilatérale · Pogos · Course 2 × 8 min" /></label></section>
+      </section>`:''}
+      ${checkout?`<section class="session-form-block"><label class="label">Travail / exposition du jour<input name="sessionWork" class="input" value="${esc(v.sessionWork)}" placeholder="Presse unilatérale · Pogos · Course 2 × 8 min" /></label></section>
       <section class="session-form-block" aria-labelledby="sessionEndTitle"><h3 id="sessionEndTitle">Fin de séance</h3><div class="session-end-inputs">
         <label class="label">Douleur max<div class="session-score"><input class="input" name="painMax" type="number" min="0" max="10" step="any" inputmode="decimal" value="${v.painMax??''}" /><span>/10</span></div></label>
-        <label class="label">RPE<div class="session-score"><input class="input" name="rpe" type="number" min="0" max="10" step="any" inputmode="decimal" value="${v.rpe??''}" /><span>/10</span></div></label>
+        <label class="label">RPE séance<div class="session-score"><input class="input" name="rpe" type="number" min="0" max="10" step="any" inputmode="decimal" value="${v.rpe??''}" /><span>/10</span></div></label>
         ${sessionChoice('goalAchievement','Objectif du jour atteint ?',['Oui','Partiellement','Non'],v.goalAchievement)}
       </div></section>
-      <section class="session-form-block session-decision-input"><label class="label">Décision / prochaine étape<input class="input" name="decision" value="${esc(v.decision)}" placeholder="Maintenir le volume, augmenter la charge, réévaluer la phase…" /></label></section>
-      <div class="btn-row"><button class="btn primary" type="submit">Enregistrer S${esc(n)}</button></div>
+      <section class="session-form-block session-decision-input"><label class="label">Décision / prochaine étape<input class="input" name="decision" value="${esc(v.decision)}" placeholder="Maintenir le volume, augmenter la charge, réévaluer la phase…" /></label></section>`:''}
+      <div class="btn-row"><button class="btn primary" type="submit">${mode==='checkout'?'Terminer la séance':existing?'Enregistrer les modifications':'Démarrer la séance'}</button></div>
     </form>`;
     openModal();modalContent.querySelector('[data-close]').onclick=closeModal;
     const form=document.getElementById('sessionForm');
-    const clinicalSchema=templateFor(p).sessionFields,initialClinical=clinicalSchema?readSchema(clinicalSchema,new FormData(form),'clinicalValues'):null;
+    const clinicalSchema=checkin?templateFor(p).sessionFields:null,initialClinical=clinicalSchema?readSchema(clinicalSchema,new FormData(form),'clinicalValues'):null;
     form.querySelectorAll('[data-session-choice]').forEach(group=>group.onclick=e=>{
       const button=e.target.closest('button[data-value]');if(!button)return;
       const input=form.elements[group.dataset.sessionChoice],value=input.value===button.dataset.value?'':button.dataset.value;
@@ -1360,15 +1371,18 @@ details > .stack { margin-top:12px; }
     });
     form.onsubmit=e=>{
       e.preventDefault();const fd=new FormData(form);
-      const values={evolution:String(fd.get('evolution')||''),reaction24h:String(fd.get('reaction24h')||''),adherenceCheckin:String(fd.get('adherenceCheckin')||''),sessionWork:String(fd.get('sessionWork')||'').trim(),painMax:sessionNumberValue(fd.get('painMax')),rpe:sessionNumberValue(fd.get('rpe')),goalAchievement:String(fd.get('goalAchievement')||''),decision:String(fd.get('decision')||'').trim(),note:String(fd.get('note')||'').trim()};
+      const values={};
+      if(checkin)Object.assign(values,{evolution:String(fd.get('evolution')||''),reaction24h:String(fd.get('reaction24h')||''),adherenceCheckin:String(fd.get('adherenceCheckin')||''),note:String(fd.get('note')||'').trim()});
+      if(checkout)Object.assign(values,{sessionWork:String(fd.get('sessionWork')||'').trim(),painMax:sessionNumberValue(fd.get('painMax')),rpe:sessionNumberValue(fd.get('rpe')),goalAchievement:String(fd.get('goalAchievement')||''),decision:String(fd.get('decision')||'').trim()});
       if(clinicalSchema){
         const clinical=readSchema(clinicalSchema,fd,'clinicalValues');
         if(!existing)values.clinicalValues=clinical;
         else {const changes=Object.fromEntries(Object.entries(clinical).filter(([key,value])=>JSON.stringify(value)!==JSON.stringify(initialClinical[key])));if(existing.clinicalValues || Object.keys(changes).length)values.clinicalValues={...(existing.clinicalValues||{}),...changes};}
       }
       // Old fields and unknown extensions stay intact when the session is edited.
-      if(existing)Object.assign(existing,values);else p.sessions.push({id:uid('ses'),n,date:nowISO(),...values});
-      p.updatedAt=nowISO();saveDB();closeModal();showToast(`Séance S${n} enregistrée`);route.tab='sessions';renderCase();
+      if(existing){if(checkout)values.status='closed';Object.assign(existing,values);}
+      else {const open=p.sessions.find(sessionIsOpen);if(open){closeModal();openSessionModal(p,open,'checkout');return;}p.sessions.push({id:uid('ses'),n,date:nowISO(),status:'open',...values});}
+      p.updatedAt=nowISO();saveDB();closeModal();showToast(`Séance S${n} ${checkout?'terminée':existing?'mise à jour':'en cours'}`);route.tab='sessions';renderCase();
     };
   }
 
