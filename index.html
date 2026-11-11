@@ -1028,7 +1028,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
       if (existing) Object.assign(existing,values,{updatedAt:nowISO()});
       else p.pivots.push({id:uid('piv'),date:nowISO(),...values});
       // A fresh clinical decision supersedes the previous manual global override.
-      if (!existing && q.aggregate && p.qualityOverrides) delete p.qualityOverrides[q.id];
+      if (q.aggregate && p.qualityOverrides) delete p.qualityOverrides[q.id];
       rememberTest(p,q,testSelect.value,false);
       if (oldQuality && oldQuality !== q.id) refreshAutomaticStatus(p,qualitiesFor(p).find(q => q.id === oldQuality));
       refreshAutomaticStatus(p,q);p.updatedAt=nowISO();saveDB();closeModal();route.tab='pivots';renderCase();
