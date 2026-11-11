@@ -1,6 +1,6 @@
 # Cockpit Clinique
 
-Application autonome HTML/CSS/JavaScript, sans backend ni dépendance applicative. Templates disponibles : CHEVILLE et GENOU (hors LCA). Aucun autre template n’est livré.
+Application autonome HTML/CSS/JavaScript, sans backend ni dépendance applicative. Templates disponibles : CHEVILLE, GENOU (hors LCA) et LCA.
 
 ## Démarrage et parcours
 
@@ -18,7 +18,7 @@ Choisir une qualité puis un test, saisir les valeurs et choisir une décision A
 
 Force MI et Endurance de force ont des sous-composantes cliniques avec statut propre. Le moteur reconstruit leur dernier état à partir des pivots et agrège A prioritaire, puis B, puis C ; D est ignoré sauf si tout est D. Les composantes d’un ancien instantané groupé restent éditables ensemble. Les métriques SSC ont uniquement des valeurs et références, avec **un seul statut clinique global SSC**. Les anciens sous-statuts SSC restent conservés dans les données historiques mais ne sont plus proposés ou utilisés comme sous-qualités.
 
-Le global composé reste modifiable manuellement dans Qualités. Cet override reste temporaire : valider un nouveau pivot pour cette qualité composée réactive le calcul global à partir des sous-composantes actualisées. Le clinicien peut ensuite appliquer un nouvel override. Un pivot d’une autre qualité ne le réinitialise pas. **Revenir au statut automatique** permet aussi de le lever immédiatement. Les autres qualités prennent la dernière décision clinique explicite enregistrée. La carte `qualityStatus` est la projection courante de ces décisions, avec historique de ses changements ; aucun statut n’est déduit automatiquement du profil ou d’un LSI.
+Le global composé reste modifiable manuellement dans Qualités. Cet override reste temporaire : valider un pivot nouveau ou modifié pour cette qualité composée réactive le calcul global à partir des sous-composantes actualisées. Le clinicien peut ensuite appliquer un nouvel override. Un pivot d’une autre qualité ne le réinitialise pas. **Revenir au statut automatique** permet aussi de le lever immédiatement. Les autres qualités prennent la dernière décision clinique explicite enregistrée. La carte `qualityStatus` est la projection courante de ces décisions, avec historique de ses changements ; aucun statut n’est déduit automatiquement du profil ou d’un LSI.
 
 Les pivots et séances sont modifiables et supprimables avec confirmation. L’édition conserve identifiant et date ; les séances conservent aussi leur numéro. Aucune renumérotation automatique de l’historique. L’édition d’un pivot recalcule les qualités affectées. Après suppression, le moteur utilise la dernière décision restante, sans effacer l’historique de statut. Si aucune décision ne permet de recalculer, la dernière lettre est conservée et explicitement signalée **à réévaluer** ; aucun nouveau statut n’est inventé.
 
@@ -30,7 +30,7 @@ Les profils définissent les qualités et tests recommandés et une courte vigil
 
 Utiliser **Endurance de force** pour tous les templates présents et futurs, notamment LCA, Tendons MI et Pubalgie. L’identifiant historique `capacity` reste stable.
 
-## Stockage et migration version 3
+## Stockage et migration version 4
 
 La clé localStorage reste `cockpit_clinique_v1_data`.
 
@@ -43,7 +43,7 @@ La migration v1 crée une identité Patient et un Cas CHEVILLE par ancien patien
 
 Avant migration, une copie de la chaîne locale complète est enregistrée sous `cockpit_clinique_v1_data_backup_migration_*`. La migration est idempotente. Si lecture, validation ou écriture échoue, la base originale n’est pas remplacée par une base vide. Les sauvegardes locales et archives ne sont pas supprimées automatiquement.
 
-L’export JSON contient toute la base v3, archives comprises. La restauration accepte v1/v2/v3, valide avant remplacement, demande confirmation et conserve la base actuelle sous une clé `cockpit_clinique_v1_data_backup_import_*`. Les copies locales sont consultables dans les outils de stockage du navigateur ; elles restent sur l’appareil et ne remplacent pas un export conservé ailleurs. Les données locales ne sont pas chiffrées par l’application.
+L’export JSON contient toute la base v4, archives comprises. La restauration accepte v1/v2/v3/v4, valide avant remplacement, demande confirmation et conserve la base actuelle sous une clé `cockpit_clinique_v1_data_backup_import_*`. Les copies locales sont consultables dans les outils de stockage du navigateur ; elles restent sur l’appareil et ne remplacent pas un export conservé ailleurs. Les données locales ne sont pas chiffrées par l’application.
 
 ## Vérification
 
@@ -55,6 +55,25 @@ node tests/longitudinal.cjs
 node tests/genou.cjs
 node tests/workflow.cjs
 node tests/migration.cjs
+node tests/lca.cjs
 ```
 
 `APP_URL` permet de changer l’URL du serveur et `CHROMIUM_PATH` l’exécutable Chromium. Les tests utilisent des contextes navigateur jetables et des données fictives. Ils couvrent patients/cas, séances, pivots, profils et ajouts, décisions et replay après édition/suppression, agrégation et override, LSI, métriques SSC sans sous-statuts, exposition répétée, persistance, export/restauration, migration depuis une base v2 produite par l’ancienne application, sauvegarde brute et conservation des données CHEVILLE. Le test de migration lit le commit historique `51249a2`, qui doit être présent dans le clone.
+
+## LCA : quatre phases critériées
+
+Le template LCA réutilise le moteur des six qualités et des pivots. Il ajoute des champs de cas configurés (côté opéré, date, chirurgien, greffon, gestes associés multiples, restrictions et protocole), puis quatre phases exactement : récupération postopératoire précoce, reconstruction des capacités, Return to Run / impacts, Return to Sport / Performance. Les sous-jalons sportifs restent des expositions en phase 4.
+
+Les seuils explicitement fournis pour les critères sont distincts des décisions A/B/C/D : un LSI de 84 % peut valider le critère quadriceps de phase 2 tout en gardant une interprétation clinique B. Le LSI seul ne valide ni les valeurs absolues, ni la préparation au sport. Les critères qualitatifs se renseignent dans le même pivot que la mesure ; ils ne sont pas redemandés dans la phase. En l’absence de données, le critère reste non évalué. Une référence nulle ou manquante ne produit aucun pourcentage ni validation. La symétrie d’extension utilise les deux mesures ; toute exception relève d’un override clinique documenté.
+
+Les mesures opéré/controlatéral de force et d’impulsion sont lues dans le même enregistrement. La flexion peut réutiliser la référence controlatérale déjà enregistrée. Les champs restent corrigeables via le pivot source. Les données d’une autre latéralité ne sont pas utilisées pour valider les critères du côté opéré. Les critères sont recalculés à l’affichage depuis les pivots et, pour les marqueurs partagés tels que la réaction à 24 h, les séances ; ils ne stockent pas une deuxième copie des mesures. Les boutons **Données sources** ouvrent les enregistrements d’origine.
+
+**Passer à la phase suivante** nécessite une confirmation. Si les critères ne sont pas tous acquis ou qu’une phase est sautée, un motif clinique est demandé. Le clinicien peut également ajuster la phase manuellement ou déclarer un critère validé, non validé, non évalué ou non applicable avec un motif. Les changements sont audités dans `phaseHistory`, avec l’état et les sources des critères au moment du passage. Une dégradation ou une source supprimée est signalée après progression, sans retour automatique à une phase antérieure. Le délai depuis l’opération n’est qu’un contexte.
+
+Les phases et le greffon filtrent les recommandations et leur ordre, jamais les lettres A/B/C/D. Les qualités secondaires sont repliées ; les tests/champs hors phase restent accessibles par **+ Autre mesure / champ**. Les mesures déjà enregistrées et les ajouts manuels restent accessibles lorsque la phase change. L’endurance ne contient que HRET et Single-Leg Bridge ; le Y-Balance est le test sensorimoteur structuré ; les éléments neurocognitifs sont des tags sans score. Les métriques SSC ont une seule décision globale. Les bilans isocinétiques sont secondaires et ne remplacent pas la force en Newton dans les critères.
+
+Le N/kg utilise la masse corporelle saisie dans le pivot (reprise pour les saisies suivantes). Les hop tests appartiennent à Fonction / exposition et ne déclenchent aucune décision clinique automatique. Pour le 6 m Timed Hop, le LSI de performance est controlatéral / opéré × 100 (temps plus faible favorable) ; les distances et forces utilisent opéré / controlatéral × 100. L’ACL-RSI conserve score, date et évolution sans seuil d’autorisation universel.
+
+Le moteur de phase est déclaré par configuration (`template.phases[].criteria`, callbacks d’évaluation, recommandations, champs par phase, priorités, résultats et contexte). Il ne teste pas l’identifiant LCA pour son fonctionnement. Les champs `caseData`, `phase`, `phaseHistory`, `criterionOverrides` et les marqueurs `session.clinicalValues` sont facultatifs pour les anciens templates. La migration v3→v4 change seulement la version de l’enveloppe et conserve les anciens cas à l’identique ; la sauvegarde brute locale précède cette migration, comme pour v1/v2. Aucun cas, pivot ou mesure CHEVILLE/GENOU n’est créé ou réinterprété par cet ajout.
+
+`tests/lca.cjs` couvre le parcours chirurgical et les quatre phases, les critères calculés sans double saisie, les confirmations, les exceptions documentées, la force normalisée, le CMJ, les pogos, les expositions, l’ACL-RSI, les hop tests, le bilan externe, les séances, l’édition et la suppression de pivots, les dégradations, la persistance et l’export/restauration. Il vérifie aussi que deux cas CHEVILLE/GENOU préexistants restent identiques.

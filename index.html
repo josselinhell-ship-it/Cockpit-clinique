@@ -295,7 +295,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
   'use strict';
 
   const STORAGE_KEY = 'cockpit_clinique_v1_data';
-  const CURRENT_VERSION = 3;
+  const CURRENT_VERSION = 4;
 
   const QUALITIES = [
     {
@@ -394,6 +394,99 @@ th, td { padding: 15px 14px; font-size: 14px; }
     } else (q.components || []).forEach(c => c.kind = 'subcomponent');
   });
 
+  // Additional templates reuse the same quality, pivot, profile and phase engines.
+  const selectField = (id,label,options) => ({id,label,type:'select',options});
+  const clinicalField = (id,label) => selectField(id,label,[['pass','Validé'],['fail','Non validé'],['unknown','Non testé']]);
+  const tagsField = (id,label,options) => ({id,label,type:'tags',options});
+  const copyQuality = id => JSON.parse(JSON.stringify(KNEE_QUALITIES.find(q => q.id === id)));
+  const LCA_QUALITIES = KNEE_QUALITIES.map(q => copyQuality(q.id));
+  const lcaQuality = id => LCA_QUALITIES.find(q => q.id === id);
+  const lm = lcaQuality('mobility');
+  lm.tests = ['ROM postopératoire'];lm.pivot='Extension / flexion / lag';
+  lm.fields = [field('extension','Extension passive côté opéré (°)'),field('activeExtension','Extension active (°)'),field('flexion','Flexion côté opéré (°)'),field('lag','Lag actif (°)'),field('referenceExtension','Extension controlatérale (°)'),field('referenceFlexion','Flexion controlatérale (°)')];
+  lm.testFields = {};lm.phaseFields={1:['extension','activeExtension','flexion','lag','referenceExtension','referenceFlexion'],2:['extension','flexion','referenceExtension','referenceFlexion'],3:['extension','flexion'],4:['extension','flexion']};
+  lm.exit='ROM complet et fonctionnel ; critères de phase affichés séparément, statut clinique manuel.';
+  const lf = lcaQuality('strength');
+  lf.fields=[field('bodyMassKg','Masse corporelle (kg, reprise si déjà renseignée)')];lf.normByMass=true;
+  lf.defaults=p=>({bodyMassKg:phaseDatum(p,'strength','bodyMassKg')?.value || ''});
+  lf.components.forEach(c=>{c.fields.push(field('protocol','Protocole / position de mesure','text'));});
+  for(const [id,name] of [['gluteus','Grand fessier'],['adductors','Adducteurs'],['tibialis','Tibial antérieur'],['other','Autre groupe musculaire']]){
+    lf.tests.push(name);lf.components.push({...component(id,name,[...bilateralFields('N'),field('protocol','Protocole / position de mesure','text'),...(id==='other'?[field('muscle','Groupe musculaire','text')]:[])]),kind:'subcomponent'});lf.testTargets[name]=[id];
+  }
+  lf.tests.push('Données isocinétiques externes');lf.secondaryTests=['Données isocinétiques externes'];lf.testTargets['Données isocinétiques externes']=['isokinetic'];
+  lf.components.push({id:'isokinetic',name:'Bilan externe (facultatif)',kind:'metric',fields:[field('extension60','Extension 60°/s','text'),field('flexion60','Flexion 60°/s','text'),field('extension240','Extension 240°/s','text'),field('flexion240','Flexion 240°/s','text'),field('eccentricHamstrings','Excentrique IJ','text'),field('peakTorque','Peak torque (préciser unité)','text'),field('lsi','LSI externe (%)'),field('comment','Commentaire / protocole','text')]});
+  const ly=lcaQuality('sensorimotor');ly.fields.push(field('normalized','Valeurs normalisées (protocole / unité)','text'));
+  const ls=lcaQuality('ssc');
+  for(const id of ['cmjConcentric','cmjEccentric']){
+    const c=ls.components.find(c=>c.id===id);c.bilateral=true;c.fields.push(field('affected','Impulsion côté opéré (N·s)'),field('contralateral','Impulsion controlatérale (N·s)'));
+  }
+  ls.components.find(c=>c.id==='cmjEccentric').name='CMJ · impulsion excentrique de décélération / asymétrie';
+  ls.components.push({...metric('djImpulse','Drop Jump · impulsion (si pertinente)'),bilateral:true,fields:[...bilateralFields('N·s'),field('protocol','Métrique / protocole','text')]});ls.testTargets['Drop Jump'].push('djImpulse');
+  ls.tests.push('Pogos unipodaux','Drop Landing');ls.testTargets['Pogos unipodaux']=[];ls.testTargets['Drop Landing']=[];
+  ls.fields.push(clinicalField('pogos','Pogos unipodaux répétés indolores et bien tolérés'),selectField('landing','Drop Landing : acceptation de l’impact',[['pass','Validé'],['fail','À travailler'],['unknown','Non testé']]),tagsField('landingTags','Observations landing',['Flexion insuffisante','Stratégie hanche','Contrôle du tronc','Évitement de charge']),clinicalField('impactMastery','Impacts / absorption jugés suffisamment maîtrisés'),selectField('symmetryRelevant','Symétrie pertinente pour ce bilan ?',[['yes','Oui'],['no','Non pertinente dans ce contexte']]),selectField('symmetryMetric','Métrique pertinente pour la symétrie',[['cmjEccentric','CMJ : impulsion excentrique de décélération'],['cmjConcentric','CMJ : impulsion concentrique'],['djImpulse','Drop Jump : impulsion']]),clinicalField('sscAbsolute','Valeurs absolues / normatives compatibles avec l’objectif'));
+  const sscInterpretation=['impactMastery','symmetryRelevant','symmetryMetric','sscAbsolute'];
+  ls.testFields={'CMJ':sscInterpretation,'Drop Jump':['boxHeight',...sscInterpretation],'Single-Leg Drop Jump (optionnel avancé)':['singleLegBoxHeight',...sscInterpretation],'Pogos unipodaux':['pogos'],'Drop Landing':['landing','landingTags','impactMastery']};
+  ls.phaseTestFields={2:{'CMJ':[],'Drop Jump':['boxHeight'],'Single-Leg Drop Jump (optionnel avancé)':['singleLegBoxHeight']},3:{'CMJ':['impactMastery'],'Drop Jump':['boxHeight','impactMastery'],'Single-Leg Drop Jump (optionnel avancé)':['singleLegBoxHeight','impactMastery']}};
+  const lx=lcaQuality('function');
+  lx.tests=['Genou / Stroke','Marche','Escaliers','AVQ','Mise en charge','Squat','Tâches unipodales','Tâches dynamiques simples','Préparation course','Running','Sprint','Décélération linéaire','Préparation multidirectionnelle','Décélération multidirectionnelle','COD planifié','COD réactif','Drills spécifiques','Entraînement sans opposition','Entraînement partiel','Entraînement complet','Compétition','Sport spécifique','Single Hop for Distance','Triple Hop','Crossover Hop','6 m Timed Hop','ACL-RSI','Autre tâche spécifique'];
+  lx.fields.push(selectField('stroke','Stroke test',[['0','0'],['trace','Trace'],['1+','1+'],['2+','2+'],['3+','3+']]),clinicalField('walking','Marche sans boiterie significative / aide non nécessaire si autorisée'),field('aids','Aides techniques / autorisations','text'),clinicalField('reactionStatus','Pas de réaction défavorable / augmentation significative à 24 h'),field('runningTargetMinutes','Cible intermédiaire de course définie (min)'),field('runningTargetKm','Cible intermédiaire de course définie (km, facultatif)'),clinicalField('runningTolerance','Course continue tolérée'),field('maxIntensity','Intensité maximale exposée (préciser unité)','text'),field('sprintIntensity','Intensité sprint (préciser unité)','text'),field('time10','Temps 10 m (s, facultatif)'),field('time20','Temps 20 m (s, facultatif)'),field('maxSpeed','Vitesse maximale (km/h, facultatif)'),clinicalField('sprintTolerance','Exposition course rapide / sprint réalisée et tolérée'),selectField('linearDeceleration','Décélération linéaire maîtrisée sans évitement',[['unknown','Non exposé'],['fail','En cours'],['pass','Validé']]),tagsField('decelerationTags','Observations décélération',['Verticalité','Évitement côté opéré','Dernier pas','Perte de contrôle','Autre']),clinicalField('multiReadiness','Force / SSC : absence de déficit majeur empêchant le multidirectionnel'),clinicalField('multiDeceleration','Décélération multidirectionnelle maîtrisée'),clinicalField('plannedCOD','COD planifié à haute intensité maîtrisé'),clinicalField('sportTolerance','Exposition sportive progressive tolérée'),clinicalField('strengthAbsolute','Force : valeurs absolues / relatives compatibles avec l’objectif'),tagsField('neuroTags','Éléments d’exposition (sans score)',['Double tâche','Focus externe','Réactivité','Charge cognitive']),field('aclRsi','ACL-RSI (/100)'),field('assessmentDate','Date du questionnaire','date'));
+  lx.fields.find(f=>f.id==='aclRsi').min=0;lx.fields.find(f=>f.id==='aclRsi').max=100;
+  const commonExposure=['reaction','reactionStatus','exposure','neuroTags'];
+  lx.testFields=Object.fromEntries(lx.tests.map(t=>[t,['task','level',...commonExposure]]));
+  Object.assign(lx.testFields,{'Genou / Stroke':['stroke','reactionStatus','reaction'],'Marche':['walking','aids',...commonExposure],'Running':['duration','distance','speed','weeklyVolume','maxIntensity','runningTargetMinutes','runningTargetKm','runningTolerance',...commonExposure],'Sprint':['sprintIntensity','time10','time20','maxSpeed','sprintTolerance',...commonExposure],'Décélération linéaire':['linearDeceleration','decelerationTags',...commonExposure],'Préparation multidirectionnelle':['multiReadiness','strengthAbsolute',...commonExposure],'Décélération multidirectionnelle':['multiDeceleration','decelerationTags',...commonExposure],'COD planifié':['plannedCOD',...commonExposure],'ACL-RSI':['aclRsi','assessmentDate']});
+  const sportStages=['Sport spécifique','Entraînement sans opposition','Entraînement partiel','Entraînement complet','Compétition'];
+  sportStages.forEach(t=>lx.testFields[t]=['sportTolerance',...commonExposure]);lx.exposureStages=sportStages;
+  for(const id of ['neuroTags','decelerationTags'])lx.fields.find(f=>f.id===id).secondary=true;ls.fields.find(f=>f.id==='landingTags').secondary=true;
+  lx.nonExposureTests=['ACL-RSI','Genou / Stroke'];
+  lx.testTargets={};lx.components=[];
+  for(const test of ['Single Hop for Distance','Triple Hop','Crossover Hop','6 m Timed Hop']){
+    const id=['Single Hop for Distance','Triple Hop','Crossover Hop','6 m Timed Hop'].indexOf(test).toString();lx.testTargets[test]=['hop'+id];
+    lx.components.push({id:'hop'+id,name:test,kind:'metric',bilateral:true,lsiDirection:test==='6 m Timed Hop'?'lower':'higher',fields:[...bilateralFields(test==='6 m Timed Hop'?'secondes':'distance, préciser unité'),field('unit','Unité / protocole','text'),field('qualitative','Commentaire qualitatif','text')]});lx.testFields[test]=commonExposure;
+  }
+  LCA_QUALITIES.forEach(q=>(q.components||[]).forEach(c=>c.fields.forEach(f=>{if(f.id==='affected')f.label=f.label.replace('Côté atteint','Côté opéré');})));
+  // Only criterion thresholds explicitly supplied in this template are used; they never assign A/B/C/D.
+  const criterion=(id,label,qualityId,test,evaluate)=>({id,label,entry:{qualityId,test},evaluate});
+  const LCA_PHASES=[
+    {id:1,name:'Récupération postopératoire précoce',profile:{qualities:['mobility','function','strength'],tests:{mobility:['ROM postopératoire'],strength:['Quadriceps'],capacity:[],sensorimotor:[],ssc:[],function:['Genou / Stroke','Marche','Escaliers','AVQ','Mise en charge']}},criteria:[
+      criterion('stroke','Stroke test ≤1+','function','Genou / Stroke',p=>phaseChoice(p,'function','stroke',['0','trace','1+'])),
+      criterion('extension','Extension complète ≥0°','mobility','ROM postopératoire',p=>phaseNumber(p,'mobility','extension',n=>n>=0,'°')),
+      criterion('flexion','Flexion ≥125°','mobility','ROM postopératoire',p=>phaseNumber(p,'mobility','flexion',n=>n>=125,'°')),
+      criterion('lag','Lag actif ≤5°','mobility','ROM postopératoire',p=>phaseNumber(p,'mobility','lag',n=>n<=5 && n>=0,'°')),
+      criterion('walking','Marche sans boiterie / aide non nécessaire si autorisée','function','Marche',p=>phaseClinical(p,'function','walking'))]},
+    {id:2,name:'Reconstruction des capacités',profile:{qualities:['mobility','strength','sensorimotor','ssc','function'],tests:{mobility:['ROM postopératoire'],strength:['Quadriceps','Ischio-jambiers','Mollet','Fessiers latéraux / abducteurs'],capacity:[],sensorimotor:['Y-Balance Test'],ssc:['CMJ','Pogos unipodaux'],function:['Genou / Stroke','Squat','Tâches unipodales','Tâches dynamiques simples','Préparation course']}},criteria:[
+      criterion('stroke','Épanchement 0 / trace','function','Genou / Stroke',p=>phaseChoice(p,'function','stroke',['0','trace'])),
+      criterion('extension','Extension complète et symétrique','mobility','ROM postopératoire',p=>combineCriteria([phaseNumber(p,'mobility','extension',n=>n>=0,'°'),phaseCompare(p,'mobility','extension','referenceExtension',(a,b)=>a===b,'symétrie extension')])),
+      criterion('flexion','Flexion ≥95 % du côté controlatéral','mobility','ROM postopératoire',p=>phaseRatio(p,'mobility','flexion','referenceFlexion',95)),
+      criterion('quadriceps','Quadri LSI ≥80 %','strength','Quadriceps',p=>phaseRatio(p,'strength','affected','contralateral',80,'quadriceps')),
+      criterion('cmj','CMJ impulsion excentrique de décélération LSI ≥80 %','ssc','CMJ',p=>phaseRatio(p,'ssc','affected','contralateral',80,'cmjEccentric')),
+      criterion('pogos','Pogos unipodaux répétés indolores et tolérés','ssc','Pogos unipodaux',p=>phaseClinical(p,'ssc','pogos'))]},
+    {id:3,name:'Return to Run / impacts',profile:{qualities:['function','strength','ssc','mobility'],tests:{mobility:['ROM postopératoire'],strength:['Quadriceps','Ischio-jambiers','Mollet','Fessiers latéraux / abducteurs'],capacity:['Single-Leg Heel Raise Endurance Test / HRET','Single-Leg Bridge Endurance Test'],sensorimotor:[],ssc:['CMJ','Drop Landing','Drop Jump'],function:['Genou / Stroke','Running','Sprint','Décélération linéaire','Préparation multidirectionnelle','ACL-RSI']}},criteria:[
+      criterion('calm','Genou stable après exposition : Stroke 0/trace et réaction à 24 h','function','Genou / Stroke',p=>combineCriteria([phaseChoice(p,'function','stroke',['0','trace']),phaseClinical(p,'function','reactionStatus')])),
+      criterion('run','Course continue : cible intermédiaire atteinte et tolérée','function','Running',p=>runningCriterion(p)),
+      criterion('sprint','Course rapide / sprint réalisé et toléré','function','Sprint',p=>phaseClinical(p,'function','sprintTolerance')),
+      criterion('deceleration','Décélération linéaire maîtrisée sans évitement','function','Décélération linéaire',p=>phaseClinical(p,'function','linearDeceleration')),
+      criterion('landing','Impacts / landing et absorption satisfaisants','ssc','Drop Landing',p=>phaseClinical(p,'ssc','impactMastery')),
+      criterion('readiness','Force / SSC : pas de déficit majeur empêchant le multidirectionnel','function','Préparation multidirectionnelle',p=>phaseClinical(p,'function','multiReadiness'))]},
+    {id:4,name:'Return to Sport / Performance',showExposureStages:true,profile:{qualities:['function','strength','ssc','mobility'],tests:{mobility:['ROM postopératoire'],strength:['Quadriceps','Ischio-jambiers','Mollet','Fessiers latéraux / abducteurs'],capacity:['Single-Leg Heel Raise Endurance Test / HRET','Single-Leg Bridge Endurance Test'],sensorimotor:[],ssc:['CMJ','Drop Landing','Drop Jump'],function:['Genou / Stroke','Décélération multidirectionnelle','COD planifié','COD réactif','Drills spécifiques',...sportStages,'ACL-RSI']}},criteria:[
+      criterion('calm','Genou calme : Stroke 0/trace et bonne réaction à 24 h','function','Genou / Stroke',p=>combineCriteria([phaseChoice(p,'function','stroke',['0','trace']),phaseClinical(p,'function','reactionStatus')])),
+      criterion('force','Quadri + IJ ≥90 % LSI et valeurs absolues / relatives compatibles','strength','Quadriceps',p=>combineCriteria([phaseRatio(p,'strength','affected','contralateral',90,'quadriceps'),phaseRatio(p,'strength','affected','contralateral',90,'hamstrings'),phaseClinical(p,'function','strengthAbsolute')])),
+      criterion('ssc','SSC : symétrie pertinente ≥90 % et interprétation absolue / normative','ssc','CMJ',p=>sscCriterion(p)),
+      criterion('deceleration','Décélération multidirectionnelle maîtrisée','function','Décélération multidirectionnelle',p=>phaseClinical(p,'function','multiDeceleration')),
+      criterion('cod','COD planifié à haute intensité maîtrisé','function','COD planifié',p=>phaseClinical(p,'function','plannedCOD')),
+      criterion('sport','Exposition sportive partielle / progressive tolérée','function','Entraînement partiel',p=>phaseClinical(p,'function','sportTolerance'))]}
+  ];
+  const phaseBlockers=[['épanchement','extension','flexion','lag actif','marche'],['épanchement','extension symétrique','flexion','force quadri','absorption excentrique','pogos'],['réaction du genou','volume course','course rapide / sprint','décélération','absorption','force / SSC'],['réaction du genou','force quadri / IJ','SSC','décélération multidirectionnelle','COD planifié','exposition sportive']];
+  LCA_PHASES.forEach((phase,index)=>phase.criteria.forEach((c,i)=>c.blockerLabel=phaseBlockers[index][i]));
+  const LCA_TEMPLATE={id:'LCA',name:'LCA',qualities:LCA_QUALITIES,phases:LCA_PHASES,subtypeLabel:'Type de greffon / chirurgie',sideLabel:'Côté opéré',constraintsLabel:'Notes / protocole spécifique',subtypes:['McIntosh','DIDT / DT4','KJ','Autre'],memos:{},guidance:'Progression critériée ; les seuils de phase ne remplacent pas la décision clinique A/B/C/D.',
+    contextTitle:'Vigilances postop / informations chirurgicales',outcomes:[{name:'ACL-RSI',qualityId:'function',scoreField:'aclRsi',dateField:'assessmentDate',max:100,fromPhase:3,note:'Décision clinique, aucune autorisation automatique.'}],
+    summaryContext:p=>{const date=p.caseData?.operationDate,days=date?Math.floor((Date.now()-new Date(date+'T00:00:00').getTime())/86400000):null;return `Chirurgie : ${p.subtype}${p.subtype==='Autre'?' · '+(p.caseData?.surgeryOther||''):''} · ${fmtDate(date)} · ${p.caseData?.surgeon||'Chirurgien non renseigné'}${Number.isFinite(days)?' · '+(days>=0?'J+'+days:'Opération prévue'):''}. Le délai ne détermine pas la phase.`;},
+    caseFields:[field('operationDate','Date d’opération','date'),field('surgeon','Nom du chirurgien','text'),{...field('surgeryOther','Autre chirurgie / greffon','text'),showWhen:{field:'subtype',value:'Autre'}},tagsField('associated','Gestes associés',['Suture méniscale','Méniscectomie','Geste extra-articulaire / LET','Autre','Aucun']),field('associatedOther','Autre geste associé (préciser)','text'),field('restrictions','Restrictions postopératoires','text')],
+    sessionOptions:{...SESSION_OPTIONS,symptoms:[...SESSION_OPTIONS.symptoms,'Épanchement','Irritabilité'],exposure:[...SESSION_OPTIONS.exposure,'Mise en charge','Marche'],tolerance:[...SESSION_OPTIONS.tolerance,'Réaction à 24 h']},
+    sessionFields:[clinicalField('reactionStatus','Réaction à 24 h favorable / sans augmentation significative'),field('weightBearing','Tolérance à la mise en charge','text'),field('aids','Aides techniques','text'),field('walkingNote','Marche','text'),field('swelling','Évolution du gonflement','text'),field('quadActivation','Activation quadri','text')],
+    postopVigilance:'Surveiller douleur et gonflement, évolution de la plaie et tolérance à la charge. Respecter les restrictions du chirurgien ; demander un avis médical si l’évolution est inhabituelle.',
+    priorities:Object.fromEntries(['McIntosh','DIDT / DT4','KJ'].map(type=>[type,{strength:type==='KJ'?['Quadriceps','Ischio-jambiers','Mollet','Fessiers latéraux / abducteurs']:['Ischio-jambiers','Quadriceps','Mollet','Fessiers latéraux / abducteurs'],capacity:type==='KJ'?['Single-Leg Heel Raise Endurance Test / HRET','Single-Leg Bridge Endurance Test']:['Single-Leg Bridge Endurance Test','Single-Leg Heel Raise Endurance Test / HRET']}]))
+  };
+
   // Add future cockpits here; the common engine reads only the case template.
   const TEMPLATES = {
     CHEVILLE: { id: 'CHEVILLE', name: 'Cheville / pied', qualities: QUALITIES,
@@ -420,6 +513,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
       guidance:'Statuts interprétés par le clinicien ; aucun seuil automatique. Douleur, irritabilité et épanchement modifient la charge et la décision, sans qualité supplémentaire.' }
 
   };
+  TEMPLATES.LCA=LCA_TEMPLATE;
   function templateFor(c) { return TEMPLATES[c.templateId]; }
   function qualitiesFor(c) { return templateFor(c).qualities; }
   function casesFor(id) { return db.cases.filter(c => c.patientId === id); }
@@ -448,7 +542,8 @@ th, td { padding: 15px 14px; font-size: 14px; }
   // Pure migration: keep a full legacy snapshot and move all clinical fields to cases.
   function migrateDB(input) {
     if (!input || !Array.isArray(input.patients)) throw new Error('Patients invalides');
-    if (input.version === 3) { validateDB(input); return input; }
+    if (input.version === 4) { validateDB(input); return input; }
+    if (input.version === 3) { validateDB(input); return {...input,version:4}; }
     if (input.version === 2) {
       validateDB(input);
       const result = JSON.parse(JSON.stringify(input));
@@ -466,7 +561,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
           c.pivots.sort((a,b) => String(a.date || '').localeCompare(String(b.date || '')));
         }
       });
-      validateDB(result); return result;
+      validateDB(result); return migrateDB(result);
     }
     if (input.version != null && input.version !== 1) throw new Error('Version non prise en charge');
     const result = { ...input, version: 2, patients: [], cases: [], legacySnapshot: input };
@@ -501,6 +596,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
           ![c.statusHistory,c.sessions,c.pivots].every(Array.isArray)) throw new Error('Cas invalide');
       if (Object.values(c.qualityStatus).some(value => !['A','B','C','D'].includes(value)) ||
           [...c.statusHistory,...c.sessions,...c.pivots].some(item => !item || typeof item !== 'object') ||
+          c.sessions.some(session => session.clinicalValues != null && (typeof session.clinicalValues!=='object' || Array.isArray(session.clinicalValues))) ||
           c.sessions.some(session => ['symptoms','exposure','tolerance','adherence'].some(key => session[key] != null && !Array.isArray(session[key])))) throw new Error('Données longitudinales invalides');
       if (c.measurements != null && (!Array.isArray(c.measurements) || c.measurements.some(m =>
           !m || typeof m.id !== 'string' || typeof m.qualityId !== 'string' || !m.values || typeof m.values !== 'object' ||
@@ -514,6 +610,10 @@ th, td { padding: 15px 14px; font-size: 14px; }
         if (record.components != null && (typeof record.components !== 'object' || Array.isArray(record.components) || Object.values(record.components).some(part => !part || typeof part !== 'object' || (part.status != null && !['A','B','C','D'].includes(part.status))))) throw new Error('Composantes invalides');
       });
       if (c.qualityOverrides != null && (typeof c.qualityOverrides !== 'object' || Array.isArray(c.qualityOverrides))) throw new Error('Statuts manuels invalides');
+      if (c.caseData != null && (typeof c.caseData !== 'object' || Array.isArray(c.caseData))) throw new Error('Informations du cas invalides');
+      if (c.phase != null && (!Number.isInteger(c.phase) || !TEMPLATES[c.templateId].phases?.some(ph=>ph.id===c.phase))) throw new Error('Phase invalide');
+      if (c.phaseHistory != null && (!Array.isArray(c.phaseHistory) || c.phaseHistory.some(h=>!h || !['transition','criterionOverride'].includes(h.type) || typeof h.date!=='string' || (h.type==='transition' && (!TEMPLATES[c.templateId].phases?.some(ph=>ph.id===h.from) || !TEMPLATES[c.templateId].phases?.some(ph=>ph.id===h.to) || !Array.isArray(h.criteria) || h.criteria.some(cr=>!cr || typeof cr.id!=='string' || !['pass','fail','unknown','na'].includes(cr.state) || !['pass','fail','unknown'].includes(cr.rawState))))))) throw new Error('Historique de phase invalide');
+      if (c.criterionOverrides != null && (typeof c.criterionOverrides !== 'object' || Array.isArray(c.criterionOverrides) || Object.values(c.criterionOverrides).some(o=>!o || !['pass','fail','unknown','na'].includes(o.state) || typeof o.reason!=='string'))) throw new Error('Override de critère invalide');
       caseIds.add(c.id);
     });
   }
@@ -573,14 +673,14 @@ th, td { padding: 15px 14px; font-size: 14px; }
   function newCaseObject(patientId, data) {
     return { ...data, id: uid('case'), patientId, status: 'active', createdAt: nowISO(), updatedAt: nowISO(),
       qualityStatus: Object.fromEntries(TEMPLATES[data.templateId].qualities.map(q => [q.id, 'D'])),
-      statusHistory: [], sessions: [], pivots: [] };
+      statusHistory: [], sessions: [], pivots: [], ...(TEMPLATES[data.templateId].phases?{phase:1,phaseHistory:[],criterionOverrides:{}}:{}) };
   }
 
   function setRoute(name, patientId=null, tab='overview', caseId=null) {
     route = { name, patientId, tab, caseId };
     render();
   }
-  function openCase(c) { setRoute('case', c.patientId, 'overview', c.id); }
+  function openCase(c) { setRoute('case', c.patientId, 'overview', c.id); window.scrollTo(0,0); }
   function wireCards(holder, selector, action) {
     holder.querySelectorAll(selector).forEach(el => {
       el.addEventListener('click', () => action(el));
@@ -631,9 +731,11 @@ th, td { padding: 15px 14px; font-size: 14px; }
       ['overview','Synthèse'], ['qualities','Qualités'], ['sessions','Séances'], ['pivots','Tests pivots']
     ];
     app.innerHTML = `
+      ${phasePanelHTML(p)}
       <section class="hero">
         <div><div class="meta">${esc(templateFor(p).name)} · ${esc(p.subtype)} · ${esc(p.side || 'Côté non renseigné')}</div><h2>${esc(p.title)}</h2><div>${esc(patient.name)}${p.status === 'archived' ? ' · Cas archivé' : ''}</div></div>
         <div>${esc(p.objective || 'Objectif non renseigné')}</div>
+        ${templateFor(p).phases?`<div class="meta">Fonction cible : ${esc(p.targetFunction||'—')}</div>`:''}
         <div class="hero-actions"><button class="btn" id="quickSessionBtn" type="button">+ Séance</button><button class="btn" id="quickPivotBtn" type="button">+ Test pivot</button><button class="btn" id="editPatientBtn" type="button">Modifier</button>${p.status === 'active' ? '<button class="btn case-archive" id="archiveDirectBtn" type="button">Archiver le cas</button>' : ''}</div>
       </section>
       <div class="tabs" style="margin:14px 0">
@@ -646,6 +748,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     document.getElementById('editPatientBtn').addEventListener('click', () => openCaseModal(p));
     const archiveButton = document.getElementById('archiveDirectBtn');
     if (archiveButton) archiveButton.onclick = () => archiveCase(p);
+    wirePhasePanel(app,p);
     const tab = document.getElementById('patientTab');
     if (route.tab === 'overview') { renderOverview(tab, p); wireMeasurements(tab, p); }
     if (route.tab === 'qualities') renderQualities(tab, p);
@@ -655,25 +758,32 @@ th, td { padding: 15px 14px; font-size: 14px; }
 
   function renderOverview(holder, p) {
     const profile = profileFor(p);
-    const lastFunction = [...p.pivots].reverse().find(m => m.qualityId === 'function');
+    const lastFunction = [...p.pivots].reverse().find(m => m.qualityId === 'function' && !qualitiesFor(p).find(q=>q.id==='function').nonExposureTests?.includes(m.test));
     const change = p.statusHistory.at(-1);
     holder.innerHTML = `<div class="stack">
-      <section class="card"><div class="section-head"><h2>Profil : ${esc(p.subtype)}</h2></div>
+      ${templateFor(p).phases?'':`<section class="card"><div class="section-head"><h2>${templateFor(p).phases?'Objectif fonctionnel':'Profil : '+esc(p.subtype)}</h2></div>
         ${profile.watch ? `<div class="small">À surveiller : ${esc(profile.watch)}</div>` : ''}
-        <details><summary class="btn secondary">Repères du profil</summary><div class="notice">${esc(templateFor(p).memos[p.subtype] || '')}</div></details>
+        ${templateFor(p).memos[p.subtype]?`<details><summary class="btn secondary">Repères du profil</summary><div class="notice">${esc(templateFor(p).memos[p.subtype])}</div></details>`:''}
         <div><strong>Fonction cible :</strong> ${esc(p.targetFunction || '—')}</div>
         ${p.context ? `<div class="small">Contexte / diagnostic : ${esc(p.context)}</div>` : ''}
-        ${p.constraints ? `<div class="small">Contraintes / notes : ${esc(p.constraints)}</div>` : ''}</section>
+        ${p.constraints ? `<div class="small">Contraintes / notes : ${esc(p.constraints)}</div>` : ''}</section>`}
+
       <section class="card"><div class="section-head"><h2>Carte clinique</h2><button id="goQualities" class="btn secondary">Ouvrir les qualités</button></div>
         <div class="quality-summary">${qualitiesFor(p).map(q => `<div><span class="badge ${(p.qualityStatus[q.id] || 'D').toLowerCase()}">${esc(q.name)} — ${p.qualityStatus[q.id] || 'D'}</span>${limitingSummary(p,q)}${p.decisionUnresolved?.[q.id] ? '<div class="small">Décision supprimée — statut à réévaluer.</div>' : ''}</div>`).join('')}</div></section>
       ${lastFunction ? `<section class="card"><h2>Dernière exposition fonctionnelle</h2><div>${fmtDate(lastFunction.date)} · ${esc(lastFunction.summary || lastFunction.values?.task || lastFunction.test || '')}</div><div class="small">${esc([lastFunction.values?.duration ? lastFunction.values.duration+' min' : '',lastFunction.values?.distance ? lastFunction.values.distance+' km' : '',lastFunction.values?.reaction,lastFunction.result].filter(Boolean).join(' · '))}</div></section>` : ''}
+      ${phaseContextHTML(p)}
       ${change ? `<div class="small">Dernier changement : ${esc(qualitiesFor(p).find(q => q.id === change.qualityId)?.name || change.qualityId)} · ${esc(change.from)} → ${esc(change.to)} · ${fmtDate(change.date)}</div>` : ''}
     </div>`;
     document.getElementById('goQualities').onclick = () => {route.tab='qualities';renderCase();};
   }
 
+  function qualityCardsHTML(p) {
+    if(!templateFor(p).phases)return qualitiesFor(p).map(q=>qualityHTML(p,q)).join('');
+    const recommended=profileFor(p).qualities||[],primary=qualitiesFor(p).filter(q=>recommended.includes(q.id)||p.pivots.some(m=>m.qualityId===q.id)||(p.profileExtras?.[q.id]||[]).length),secondary=qualitiesFor(p).filter(q=>!primary.includes(q));
+    return primary.map(q=>qualityHTML(p,q)).join('')+(secondary.length?`<details><summary class="btn secondary">+ Autres qualités / mesures</summary><div class="stack">${secondary.map(q=>qualityHTML(p,q)).join('')}</div></details>`:'');
+  }
   function renderQualities(holder, p) {
-    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>${esc(templateFor(p).guidance || '')}</p></div></div><div class="stack">${qualitiesFor(p).map(q => qualityHTML(p,q)).join('')}</div>`;
+    holder.innerHTML = `<div class="section-head"><div><h2>Carte A/B/C/D</h2><p>${esc(templateFor(p).guidance || '')}</p></div></div><div class="stack">${qualityCardsHTML(p)}</div>`;
     wireMeasurements(holder, p);
     holder.querySelectorAll('.status-btn').forEach(btn => btn.addEventListener('click', () => {
       const qid = btn.dataset.quality, next = btn.dataset.status, old = p.qualityStatus[qid] || 'D';
@@ -699,7 +809,14 @@ th, td { padding: 15px 14px; font-size: 14px; }
     </section>`;
   }
 
-  function profileFor(p) { return templateFor(p).profiles?.[p.subtype] || {}; }
+  function profileFor(p) {
+    const template=templateFor(p),phase=phaseDefinition(p),base=template.profiles?.[p.subtype]||{};
+    if(!phase)return base;
+    const profile={...base,...phase.profile,tests:{...base.tests,...phase.profile.tests}};
+    const priorities=template.priorities?.[p.subtype]||{};
+    for(const [qualityId,priority]of Object.entries(priorities))if(profile.tests[qualityId]?.length)profile.tests[qualityId]=[...priority.filter(t=>profile.tests[qualityId].includes(t)),...profile.tests[qualityId].filter(t=>!priority.includes(t))];
+    return profile;
+  }
   function recommendedTests(p,q) { return profileFor(p).tests?.[q.id] || (profileFor(p).tests?.[q.id] === undefined ? q.tests : []); }
   function visibleTests(p,q) {
     const used = p.pivots.filter(m => m.qualityId === q.id).flatMap(m => [m.test,...(q.components || []).filter(c => hasValues(m.components?.[c.id])).flatMap(c => Object.keys(q.testTargets || {}).filter(t => q.testTargets[t].includes(c.id)))]);
@@ -710,7 +827,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     if (!p.profileExtras[q.id].includes(test)) p.profileExtras[q.id].push(test);
     if (persist) saveDB();
   }
-  function hasValues(data) { return data && Object.entries(data).some(([key,value]) => key === 'status' ? ['A','B','C'].includes(value) : value !== '' && value != null); }
+  function hasValues(data) { return data && Object.entries(data).some(([key,value]) => key === 'status' ? ['A','B','C'].includes(value) : (Array.isArray(value)?value.length>0:value !== '' && value != null)); }
   function latestMeasurement(p,id) { return [...p.pivots].reverse().find(m => m.qualityId === id); }
   function componentState(p,q) {
     const state = {};
@@ -747,25 +864,34 @@ th, td { padding: 15px 14px; font-size: 14px; }
     return text ? `<div class="small">${esc(text)}</div>` : '';
   }
   function measurementValuesHTML(fields,values) {
-    return fields.filter(f => values[f.id] !== '' && values[f.id] != null).map(f => `<div class="small">${esc(f.label)} : ${esc(values[f.id])}</div>`).join('');
+    return fields.filter(f=>hasValues({value:values[f.id]})).map(f=>{
+      const option=f.type==='select'?f.options.find(o=>(Array.isArray(o)?o[0]:o)===values[f.id]):null;
+      const value=option?(Array.isArray(option)?option[1]:option):Array.isArray(values[f.id])?values[f.id].join(' · '):values[f.id];
+      return `<div class="small">${esc(f.label)} : ${esc(value)}</div>`;
+    }).join('');
   }
-  function lsi(data) {
+  function normalizedForce(data,values) {
+    const mass=numeric(values?.bodyMassKg);return mass>0?`N/kg opéré : ${numeric(data?.affected)!=null?(Number(data.affected)/mass).toFixed(2):'—'} · controlatéral : ${numeric(data?.contralateral)!=null?(Number(data.contralateral)/mass).toFixed(2):'—'}`:'N/kg : masse corporelle non renseignée';
+  }
+  function romRatioText(values) {const a=numeric(values?.flexion),b=numeric(values?.referenceFlexion);return a!=null && b>0?`Flexion / controlatéral : ${(a/b*100).toFixed(1)} %`:'Flexion / controlatéral : référence non renseignée';}
+  function lsi(data,direction='higher') {
     if (data.affected == null || data.affected === '' || data.contralateral == null || data.contralateral === '') return '—';
     const a = Number(data.affected), b = Number(data.contralateral);
-    return Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b > 0 ? `${(a/b*100).toFixed(1)} %` : '—';
+    return Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b > 0 && (direction!=='lower' || a>0) ? `${(direction==='lower'?(a>0?b/a*100:NaN):a/b*100).toFixed(1)} %` : '—';
   }
   function pivotMetricsHTML(p,m) {
     const q = qualitiesFor(p).find(q => q.id === m.qualityId);
     if (!q) return '';
-    return `${measurementValuesHTML(q.fields || [],m.values || {})}${(q.components || []).filter(c => hasValues(m.components?.[c.id])).map(c => `<div><strong>${esc(c.name)}${c.kind !== 'metric' && m.components[c.id].status ? ' · '+esc(m.components[c.id].status) : ''}</strong>${measurementValuesHTML(c.fields,m.components[c.id])}${q.bilateral ? `<div class="small">LSI : ${lsi(m.components[c.id])}</div>` : ''}</div>`).join('')}`;
+    return `${measurementValuesHTML(q.fields || [],m.values || {})}${(q.components || []).filter(c => hasValues(m.components?.[c.id])).map(c => `<div><strong>${esc(c.name)}${c.kind !== 'metric' && m.components[c.id].status ? ' · '+esc(m.components[c.id].status) : ''}</strong>${measurementValuesHTML(c.fields,m.components[c.id])}${q.bilateral || c.bilateral ? `<div class="small">LSI : ${lsi(m.components[c.id],c.lsiDirection)}</div>` : ''}${q.normByMass && c.kind!=='metric'?`<div class="small">${normalizedForce(m.components[c.id],m.values)}</div>`:''}</div>`).join('')}`;
   }
   function measurementDetailHTML(p,q) {
-    const tests = visibleTests(p,q), other = q.tests.filter(t => !tests.includes(t));
+    const secondary=q.secondaryTests||[],tests=visibleTests(p,q).filter(t=>!secondary.includes(t)),other=q.tests.filter(t=>!tests.includes(t)&&!secondary.includes(t));
     const records = p.pivots.filter(m => m.qualityId === q.id);
     return `<details><summary class="btn secondary">Détail · mesures et décisions</summary><div class="stack" style="margin-top:14px">
       ${q.guidance ? `<div class="notice">${esc(q.guidance)}</div>` : ''}
       <div class="btn-row">${tests.map(test => `<button class="btn secondary" type="button" data-start-quality="${q.id}" data-start-test="${esc(test)}">${esc(test)}</button>`).join('')}</div>
       ${other.length ? `<details><summary class="btn secondary">+ Autre mesure</summary><div class="btn-row">${other.map(test => `<button class="btn secondary" type="button" data-start-quality="${q.id}" data-start-test="${esc(test)}">${esc(test)}</button>`).join('')}</div></details>` : ''}
+      ${secondary.length?`<details><summary class="btn secondary">${esc(secondary[0])}</summary><button class="btn secondary" type="button" data-start-quality="${q.id}" data-start-test="${esc(secondary[0])}">+ Ajouter</button></details>`:''}
       ${q.aggregate ? `<div class="small">${p.qualityOverrides?.[q.id] ? 'Statut global manuel' : 'Statut global automatique'}</div><button class="btn secondary" type="button" data-auto-quality="${q.id}">Revenir au statut automatique</button>` : ''}
       ${p.decisionUnresolved?.[q.id] ? '<div class="notice">Décision supprimée — statut à réévaluer. La dernière lettre affichée est conservée sans nouvelle interprétation automatique.</div>' : ''}
       ${[...records].reverse().map(m => pivotTimelineHTML(m,p)).join('') || '<div class="small">Aucune mesure enregistrée.</div>'}
@@ -783,12 +909,141 @@ th, td { padding: 15px 14px; font-size: 14px; }
     });
     wireRecordActions(holder,p,'pivot');
   }
+  function fieldInput(f,value,name) {
+    if(f.type==='select')return `<label class="label">${esc(f.label)}<select class="select" name="${name}"><option value="">Non renseigné</option>${f.options.map(o=>{const [id,label]=Array.isArray(o)?o:[o,o];return `<option value="${esc(id)}" ${String(value)===String(id)?'selected':''}>${esc(label)}</option>`;}).join('')}</select></label>`;
+    if(f.type==='tags')return `<fieldset class="card"><legend>${esc(f.label)}</legend>${f.options.map(o=>`<label style="display:flex;align-items:center;gap:12px;min-height:48px"><input type="checkbox" name="${name}" value="${esc(o)}" ${Array.isArray(value)&&value.includes(o)?'checked':''} style="width:24px;height:24px" />${esc(o)}</label>`).join('')}</fieldset>`;
+    return `<label class="label">${esc(f.label)}<input class="input" name="${name}" type="${f.type}" ${f.type==='number'?`step="any" ${f.min!=null?`min="${f.min}"`:''} ${f.max!=null?`max="${f.max}"`:''}`:'maxlength="500"'} value="${esc(value??'')}" /></label>`;
+  }
+  function readSchema(schema,fd,prefix) {return Object.fromEntries(schema.map(f=>[f.id,f.type==='tags'?fd.getAll(`${prefix}.${f.id}`):String(fd.get(`${prefix}.${f.id}`)||'').trim()]));}
   function measurementFields(fields,values,prefix) {
-    const input = f => `<label class="label">${esc(f.label)}<input class="input" name="${prefix}.${f.id}" type="${f.type}" ${f.type === 'number' ? 'step="any"' : 'maxlength="300"'} value="${esc(values[f.id] ?? '')}" /></label>`;
-    const optional = fields.filter(f => /reference|cutoff/i.test(f.id));
-    return fields.filter(f => !optional.includes(f)).map(input).join('') + (optional.length ? `<details ${optional.some(f => values[f.id]) ? 'open' : ''}><summary class="btn secondary">Références (facultatif)</summary>${optional.map(input).join('')}</details>` : '');
+    const input=f=>fieldInput(f,values[f.id],`${prefix}.${f.id}`),optional=fields.filter(f=>f.secondary || /reference|cutoff/i.test(f.id));
+    return fields.filter(f=>!optional.includes(f)).map(input).join('')+(optional.length?`<details ${optional.some(f=>hasValues({value:values[f.id]}))?'open':''}><summary class="btn secondary">Références et options (facultatif)</summary>${optional.map(input).join('')}</details>`:'');
   }
   function openMeasurementModal(p,q,existing=null) {openPivotModal(p,existing,q.id);}
+
+  // Generic criterion engine: it reads the canonical longitudinal records, never a second measurement store.
+  function phaseRecords(p,qualityId) {
+    return [...p.pivots.filter(m=>m.qualityId===qualityId),...(qualityId==='function'?p.sessions.filter(s=>s.clinicalValues).map(s=>({...s,values:s.clinicalValues})):[])]
+      .sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  }
+  function phaseDatum(p,qualityId,key,componentId=null) {
+    for(const m of phaseRecords(p,qualityId).reverse()) {
+      if(p.side && m.side && !['Bilatéral','Non précisé',p.side].includes(m.side)) continue;
+      const values=componentId?m.components?.[componentId]:m.values;
+      if(values && values[key]!=='' && values[key]!=null && (!Array.isArray(values[key]) || values[key].length)) return {value:values[key],record:m};
+    }
+    return null;
+  }
+  function numeric(value) {return value!=='' && value!=null && String(value).trim()!=='' && Number.isFinite(Number(value))?Number(value):null;}
+  function criterionResult(state,detail='',records=[]) {return {state,detail,recordIds:[...new Set(records.filter(Boolean).map(m=>m.id))]};}
+  function phaseNumber(p,q,key,rule,unit='',componentId=null) {
+    const datum=phaseDatum(p,q,key,componentId),n=numeric(datum?.value);
+    return n==null?criterionResult('unknown','Non évalué'):criterionResult(rule(n)?'pass':'fail',`${n}${unit}`, [datum.record]);
+  }
+  function phaseChoice(p,q,key,passing) {
+    const datum=phaseDatum(p,q,key);
+    return !datum?criterionResult('unknown','Non évalué'):criterionResult(passing.includes(datum.value)?'pass':'fail',String(datum.value),[datum.record]);
+  }
+  function phaseClinical(p,q,key) {
+    const datum=phaseDatum(p,q,key),state=datum?.value;
+    return criterionResult(['pass','fail'].includes(state)?state:'unknown',state==='pass'?'Validation clinique enregistrée':state==='fail'?'Non validé cliniquement':'Décision clinique requise',datum?[datum.record]:[]);
+  }
+  function phaseCompare(p,q,key,reference,rule,label) {
+    const a=phaseDatum(p,q,key),b=phaseDatum(p,q,reference),an=numeric(a?.value),bn=numeric(b?.value);
+    return an==null||bn==null?criterionResult('unknown',`${label} : référence manquante`,[a?.record,b?.record]):criterionResult(rule(an,bn)?'pass':'fail',`${an} / ${bn} · ${label}`,[a.record,b.record]);
+  }
+  function phaseRatio(p,q,key,reference,threshold,componentId=null) {
+    let a,b;
+    if(componentId) {
+      const record=[...phaseRecords(p,q)].reverse().find(m=>(!p.side || !m.side || ['Bilatéral','Non précisé',p.side].includes(m.side)) && m.components?.[componentId] && hasValues(m.components[componentId]));
+      a={value:record?.components[componentId][key],record};b={value:record?.components[componentId][reference],record};
+    } else {a=phaseDatum(p,q,key);b=phaseDatum(p,q,reference);}
+    const an=numeric(a?.value),bn=numeric(b?.value);
+    if(an==null||bn==null||an<0||bn<=0) return criterionResult('unknown','LSI / pourcentage non calculable',[a?.record,b?.record]);
+    const ratio=an/bn*100;
+    return criterionResult(ratio>=threshold?'pass':'fail',`${ratio.toFixed(1)} %`,[a.record,b.record]);
+  }
+  function combineCriteria(results) {
+    return {state:results.some(r=>r.state==='fail')?'fail':results.some(r=>r.state==='unknown')?'unknown':'pass',detail:results.map(r=>r.detail).filter(Boolean).join(' · '),recordIds:[...new Set(results.flatMap(r=>r.recordIds))]};
+  }
+  function runningCriterion(p) {
+    const duration=phaseDatum(p,'function','duration'),distance=phaseDatum(p,'function','distance');
+    const minutes=phaseDatum(p,'function','runningTargetMinutes'),km=phaseDatum(p,'function','runningTargetKm');
+    const checks=[];
+    for(const [value,target,label] of [[duration,minutes,'min'],[distance,km,'km']]) {
+      const v=numeric(value?.value),t=numeric(target?.value);
+      if(t!=null && t>0) checks.push(criterionResult(v==null?'unknown':v>=t?'pass':'fail',`${v??'—'} / ${t} ${label}`,[value?.record,target?.record]));
+    }
+    if(!checks.length) checks.push(criterionResult('unknown','Volume cible intermédiaire à définir par le clinicien'));
+    return combineCriteria([...checks,phaseClinical(p,'function','runningTolerance'),phaseClinical(p,'function','reactionStatus')]);
+  }
+  function sscCriterion(p) {
+    const clinical=phaseClinical(p,'ssc','sscAbsolute');
+    const relevant=phaseDatum(p,'ssc','symmetryRelevant'),metric=phaseDatum(p,'ssc','symmetryMetric');
+    const symmetry=relevant?.value==='no'?criterionResult('pass','Symétrie déclarée non pertinente',[relevant.record]):relevant?.value==='yes' && metric?phaseRatio(p,'ssc','affected','contralateral',90,metric.value):criterionResult('unknown','Pertinence / métrique de symétrie à préciser');
+    return combineCriteria([clinical,symmetry]);
+  }
+  function phaseDefinition(p) {return templateFor(p).phases?.find(phase=>phase.id===(p.phase||1));}
+  function evaluatedCriteria(p,phase) {
+    return phase.criteria.map(c=>{
+      const raw=c.evaluate(p),override=p.criterionOverrides?.[`${phase.id}.${c.id}`];
+      return {...raw,id:c.id,label:c.label,blockerLabel:c.blockerLabel,entry:c.entry,rawState:raw.state,...(override?{state:override.state,override}:{} )};
+    });
+  }
+  function phasePanelHTML(p) {
+    const template=templateFor(p),phase=phaseDefinition(p);if(!phase)return '';
+    const criteria=evaluatedCriteria(p,phase),applicable=criteria.filter(c=>c.state!=='na'),passed=applicable.filter(c=>c.state==='pass').length;
+    const blockers=criteria.filter(c=>['fail','unknown'].includes(c.state));
+    if(route.tab!=='overview')return `<section class="card" id="phasePanel" style="margin-bottom:20px"><strong>Phase ${phase.id} — ${esc(phase.name)}</strong><div>${passed} / ${applicable.length} critères validés</div><button class="btn secondary" type="button" id="showPhaseCriteria">Voir les critères de phase</button></section>`;
+    const degraded=[];
+    for(const history of p.phaseHistory||[]) if(history.type==='transition' && history.from<(p.phase||1)) {
+      const prior=template.phases.find(ph=>ph.id===history.from);if(!prior)continue;
+      evaluatedCriteria(p,prior).forEach(c=>{if(history.criteria?.some(old=>old.id===c.id && old.rawState==='pass') && !['pass','na'].includes(c.rawState))degraded.push(c.label);});
+    }
+    return `<section class="card stack" id="phasePanel" style="margin-bottom:20px"><div><div class="eyebrow">Phase actuelle</div><h2 style="margin:4px 0">Phase ${phase.id} — ${esc(phase.name)}</h2><strong>${passed} / ${applicable.length} critères validés</strong></div>
+      <div style="display:grid;gap:10px">${criteria.map(c=>`<div data-criterion="${c.id}" data-state="${c.state}"><strong>${c.state==='pass'?'✅':c.state==='fail'?'❌':c.state==='na'?'—':'○'} ${esc(c.label)}</strong><span class="small"> — ${esc(c.state==='na'?'Non applicable':c.override?(c.state==='pass'?'Validé cliniquement':c.state==='fail'?'Non validé cliniquement':'Non évalué'):c.detail)}${c.state==='unknown'?' · Non évalué':''}${c.override?' · Override clinique : '+esc(c.override.reason):''}${c.override && c.rawState==='fail' && c.state==='pass'?' · Mesure actuelle non validée, override conservé.':''}</span></div>`).join('')}</div>
+      <details><summary class="btn secondary">Saisir / ajuster les critères</summary><div class="stack">${criteria.map(c=>`<div><strong>${esc(c.label)}</strong><div class="btn-row"><button class="btn secondary" type="button" data-criterion-entry="${c.id}">${c.recordIds.some(id=>p.pivots.some(m=>m.id===id))?'Voir / compléter la mesure':'Saisir la mesure'}</button><button class="btn secondary" type="button" data-criterion-override="${c.id}">Override / non applicable</button></div>${c.recordIds.length?`<details><summary class="btn secondary">Données sources</summary>${c.recordIds.map(id=>{const pivot=p.pivots.find(m=>m.id===id),session=p.sessions.find(m=>m.id===id);return pivot||session?`<button class="btn secondary" type="button" data-phase-source="${esc(id)}" data-source-kind="${pivot?'pivot':'session'}">${esc(pivot?pivot.test:'Séance S'+session.n)} · ${fmtDate((pivot||session).date)}</button>`:'';}).join('')}</details>`:''}</div>`).join('')}<details><summary class="btn secondary">Ajuster la phase / historique</summary><label class="label">Phase<select class="select" id="manualPhase">${template.phases.map(ph=>`<option value="${ph.id}" ${ph.id===phase.id?'selected':''}>${ph.id} — ${esc(ph.name)}</option>`).join('')}</select></label><button class="btn secondary" type="button" id="setPhaseBtn">Valider le changement de phase</button>${(p.phaseHistory||[]).map(h=>`<div class="small">${fmtDateTime(h.date)} · ${h.type==='transition'?`Phase ${h.from} → ${h.to}`:'Override de critère'} · ${esc(h.reason||'')}</div>`).join('')}</details></div></details>
+      <div><strong>Freins actuels :</strong> ${esc(blockers.map(c=>c.blockerLabel||c.label).join(' · ')||'Aucun critère restant — validation clinique de la progression requise.')}</div>
+      ${degraded.length?`<div class="notice" role="status">Dégradation / donnée manquante depuis le passage : ${esc([...new Set(degraded)].join(' · '))}. Phase conservée ; réévaluation clinique requise.</div>`:''}
+      ${phase.id<template.phases.length?'<button class="btn secondary" id="nextPhaseBtn" type="button">Passer à la phase suivante</button>':''}
+
+      </section>`;
+  }
+  function phaseContextHTML(p) {
+    const template=templateFor(p),phase=phaseDefinition(p);if(!phase)return '';
+    const outcomes=(template.outcomes||[]).filter(o=>phase.id>=o.fromPhase).map(o=>{
+      const score=phaseDatum(p,o.qualityId,o.scoreField);if(!score)return '';
+      const scores=phaseRecords(p,o.qualityId).filter(m=>numeric(m.values?.[o.scoreField])!=null),trend=scores.length>1?Number(scores.at(-1).values[o.scoreField])-Number(scores.at(-2).values[o.scoreField]):null;
+      return `<div><strong>${esc(o.name)} :</strong> ${esc(score.value)}/${o.max} · ${fmtDate(score.record.values?.[o.dateField]||score.record.date)}${trend!=null?` · évolution ${trend>0?'+':''}${trend}`:''} <span class="small">${esc(o.note||'')}</span></div>`;
+    }).join('');
+    const stage=[...p.pivots].reverse().find(m=>qualitiesFor(p).find(q=>q.id==='function')?.exposureStages?.includes(m.test));
+    return `<section class="card stack" id="phaseContext">${phase.showExposureStages?`<div><strong>Continuum d’exposition</strong><div class="badges" aria-label="Continuum d’exposition">${(qualitiesFor(p).find(q=>q.id==='function')?.exposureStages||[]).map(label=>`<span class="badge" ${stage?.test===label?'aria-current="step" style="border:2px solid var(--navy)"':''}>${esc(label)}</span>`).join('')}</div><div class="small">Dernière exposition documentée : ${esc(stage?.test||'Non documentée')} ; aucun changement automatique de phase.</div></div>`:''}${outcomes}${template.summaryContext?`<div class="small">${esc(template.summaryContext(p))}</div>`:''}${template.contextTitle?`<details><summary class="btn secondary">${esc(template.contextTitle)}</summary><div class="notice">${esc(template.postopVigilance||'')}</div>${p.context?`<div class="small">Contexte : ${esc(p.context)}</div>`:''}${p.constraints?`<div class="small">Notes / protocole : ${esc(p.constraints)}</div>`:''}${measurementValuesHTML(template.caseFields||[],p.caseData||{})}</details>`:''}</section>`;
+  }
+  function transitionPhase(p,target) {
+    const phase=phaseDefinition(p);if(!phase || target===phase.id || !templateFor(p).phases.some(ph=>ph.id===target))return;
+    const criteria=evaluatedCriteria(p,phase),complete=criteria.every(c=>['pass','na'].includes(c.state));let reason='';
+    if(target>phase.id && (!complete || target>phase.id+1)) {reason=prompt('Critères incomplets ou phase sautée. Motif de la décision clinique :')?.trim();if(!reason)return;}
+    if(!confirm(`Passer de la phase ${phase.id} à la phase ${target} ?${!complete && target>phase.id?' Les critères ne sont pas tous validés.':''}`))return;
+    p.phaseHistory||=[];p.phaseHistory.push({type:'transition',from:phase.id,to:target,date:nowISO(),reason,criteria:criteria.map(c=>({id:c.id,state:c.state,rawState:c.rawState,detail:c.detail,recordIds:c.recordIds}))});p.phase=target;p.updatedAt=nowISO();saveDB();renderCase();
+  }
+  function wirePhasePanel(holder,p) {
+    const phase=phaseDefinition(p);if(!phase)return;
+    const show=holder.querySelector('#showPhaseCriteria');if(show)show.onclick=()=>{route.tab='overview';renderCase();window.scrollTo(0,0);};
+    const criteria=evaluatedCriteria(p,phase);
+    holder.querySelectorAll('[data-phase-source]').forEach(b=>b.onclick=()=>{const record=(b.dataset.sourceKind==='pivot'?p.pivots:p.sessions).find(m=>m.id===b.dataset.phaseSource);if(record)(b.dataset.sourceKind==='pivot'?openPivotModal:openSessionModal)(p,record);});
+    holder.querySelectorAll('[data-criterion-entry]').forEach(b=>b.onclick=()=>{
+      const c=criteria.find(c=>c.id===b.dataset.criterionEntry),record=p.pivots.find(m=>c.recordIds.includes(m.id) && m.qualityId===c.entry.qualityId && m.test===c.entry.test);
+      openPivotModal(p,record||null,c.entry.qualityId,c.entry.test);
+    });
+    holder.querySelectorAll('[data-criterion-override]').forEach(b=>b.onclick=()=>{
+      const c=criteria.find(c=>c.id===b.dataset.criterionOverride),key=`${phase.id}.${c.id}`,current=p.criterionOverrides?.[key];
+      modalContent.innerHTML=`<form id="criterionOverrideForm" class="modal-inner"><div class="modal-head"><h2>${esc(c.label)}</h2><button type="button" class="close-btn" data-close>×</button></div><label class="label">Décision<select class="select" name="state">${[['auto','Utiliser la mesure / décision du pivot'],['pass','Validé cliniquement'],['fail','Non validé'],['unknown','Non évalué'],['na','Non applicable']].map(([id,label])=>`<option value="${id}" ${current?.state===id?'selected':''}>${label}</option>`).join('')}</select></label><label class="label">Motif / restriction spécifique<input class="input" name="reason" required maxlength="500" value="${esc(current?.reason||'')}" /></label><button class="btn primary" type="submit">Enregistrer</button></form>`;
+      openModal();modalContent.querySelector('[data-close]').onclick=closeModal;
+      document.getElementById('criterionOverrideForm').onsubmit=e=>{e.preventDefault();const fd=new FormData(e.currentTarget),state=fd.get('state'),reason=String(fd.get('reason')).trim();if(!reason)return;p.criterionOverrides||={};if(state==='auto')delete p.criterionOverrides[key];else p.criterionOverrides[key]={state,reason,date:nowISO()};p.phaseHistory||=[];p.phaseHistory.push({type:'criterionOverride',criterion:key,state,reason,date:nowISO()});p.updatedAt=nowISO();saveDB();closeModal();renderCase();};
+    });
+    const next=holder.querySelector('#nextPhaseBtn');if(next)next.onclick=()=>transitionPhase(p,phase.id+1);
+    const change=holder.querySelector('#setPhaseBtn');if(change)change.onclick=()=>transitionPhase(p,Number(holder.querySelector('#manualPhase').value));
+  }
 
   function archiveCase(c) {
     if (!confirm('Archiver ce cas ?')) return;
@@ -867,18 +1122,23 @@ th, td { padding: 15px 14px; font-size: 14px; }
     modalContent.innerHTML = `<form id="caseForm" class="modal-inner"><div class="modal-head"><h2>${existing ? 'Modifier le cas' : 'Nouveau cas'}</h2><button class="close-btn" type="button" data-close>×</button></div>
       <label class="label">Cockpit<select name="templateId" class="select" ${existing ? 'disabled' : ''}>${Object.values(TEMPLATES).map(t => `<option value="${t.id}" ${t.id === c.templateId ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
       <label class="label">Titre du cas<input name="title" class="input" maxlength="160" value="${esc(c.title)}" placeholder="Ex. Entorse cheville droite" /></label>
-      <label class="label">Côté<select name="side" class="select">${['','Droit','Gauche','Bilatéral','Non précisé'].map(x => `<option value="${x}" ${x === c.side ? 'selected' : ''}>${x || 'Choisir…'}</option>`).join('')}</select></label>
+      <label class="label"><span id="sideLabel">Côté</span><select name="side" class="select">${['','Droit','Gauche','Bilatéral','Non précisé'].map(x => `<option value="${x}" ${x === c.side ? 'selected' : ''}>${x || 'Choisir…'}</option>`).join('')}</select></label>
       <label class="label"><span id="subtypeLabel">Profil lésionnel</span><select name="subtype" class="select"></select></label>
+      <div id="caseExtraFields" class="form-grid two"></div>
       ${[['context','Contexte / diagnostic'],['objective','Objectif principal'],['targetFunction','Fonction cible']].map(([key,label]) => `<label class="label">${label}<input name="${key}" class="input" maxlength="180" value="${esc(c[key])}" /></label>`).join('')}
       <label class="label"><span id="constraintsLabel">Contraintes / notes</span><textarea name="constraints" class="textarea" maxlength="800">${esc(c.constraints)}</textarea></label>
       <div class="btn-row"><button class="btn primary" type="submit">${existing ? 'Enregistrer' : 'Créer le cas'}</button>${existing ? `<button id="archiveCaseBtn" class="btn danger" type="button">${c.status === 'archived' ? 'Réactiver le cas' : 'Archiver le cas'}</button>` : ''}</div></form>`;
     const form = document.getElementById('caseForm');
-    const fill = () => { const t = TEMPLATES[form.elements.templateId.value]; document.getElementById('subtypeLabel').textContent = t.subtypeLabel || 'Profil lésionnel'; document.getElementById('constraintsLabel').textContent = t.constraintsLabel || 'Contraintes / notes'; form.elements.subtype.innerHTML = t.subtypes.map(x => `<option ${x === c.subtype ? 'selected' : ''}>${esc(x)}</option>`).join(''); };
-    fill(); form.elements.templateId.onchange = fill;
+    const fill = () => { const t = TEMPLATES[form.elements.templateId.value]; document.getElementById('sideLabel').textContent=t.sideLabel||'Côté';form.elements.side.required=!!t.phases;document.getElementById('caseExtraFields').innerHTML=(t.caseFields||[]).map(f=>`<div data-extra-field="${f.id}">${fieldInput(f,c.caseData?.[f.id],`caseData.${f.id}`)}</div>`).join(''); document.getElementById('subtypeLabel').textContent = t.subtypeLabel || 'Profil lésionnel'; document.getElementById('constraintsLabel').textContent = t.constraintsLabel || 'Contraintes / notes'; form.elements.subtype.innerHTML = t.subtypes.map(x => `<option ${x === c.subtype ? 'selected' : ''}>${esc(x)}</option>`).join(''); };
+    const filterExtras=()=>{const t=TEMPLATES[form.elements.templateId.value];(t.caseFields||[]).forEach(f=>{const el=form.querySelector(`[data-extra-field="${f.id}"]`);if(el)el.hidden=!!f.showWhen && form.elements[f.showWhen.field].value!==f.showWhen.value;});};
+    fill();filterExtras();form.elements.templateId.onchange=()=>{fill();filterExtras();};form.elements.subtype.onchange=filterExtras;
     openModal(); modalContent.querySelector('[data-close]').onclick = closeModal;
     form.onsubmit = e => {
       e.preventDefault(); const data = Object.fromEntries(new FormData(form));
       data.templateId = existing ? existing.templateId : data.templateId;
+      const schema=TEMPLATES[data.templateId].caseFields;
+      if(schema){data.caseData={...(existing?.caseData||{}),...readSchema(schema,new FormData(form),'caseData')};if(data.caseData.associated?.includes('Aucun') && data.caseData.associated.length>1){alert('Choisir Aucun ou les gestes associés, pas les deux.');return;}}
+      Object.keys(data).filter(key=>key.startsWith('caseData.')).forEach(key=>delete data[key]);
       data.title = data.title.trim() || `${TEMPLATES[data.templateId].name}${data.side ? ' · '+data.side : ''}`;
       const episode = existing || newCaseObject(route.patientId, data);
       if (existing) Object.assign(episode,data,{updatedAt:nowISO()}); else db.cases.push(episode);
@@ -912,6 +1172,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
       <div><div class="label" style="margin-bottom:7px">Tolérance</div>${chipGroup('tolerance',templateFor(p).sessionOptions.tolerance)}</div>
       <div><div class="label" style="margin-bottom:7px">Observance</div>${chipGroup('adherence',templateFor(p).sessionOptions.adherence)}</div>
       <label class="label">Note libre (optionnel)<textarea name="note" class="textarea" maxlength="500" placeholder="Uniquement si ça change la décision…"></textarea></label>
+      ${(templateFor(p).sessionFields||[]).length?`<details><summary class="btn secondary">Marqueurs de suivi postopératoire</summary>${measurementFields(templateFor(p).sessionFields,existing?.clinicalValues||{},'clinicalValues')}</details>`:''}
       <button class="btn primary" type="submit">Enregistrer S${n}</button>
     </form>`;
     openModal(); wireChips(modalContent); modalContent.querySelector('[data-close]').addEventListener('click', closeModal);
@@ -934,6 +1195,7 @@ th, td { padding: 15px 14px; font-size: 14px; }
     form.addEventListener('submit', e => {
       e.preventDefault(); const fd = new FormData(e.currentTarget);
       const values = {pain:fd.get('pain'), decision:fd.get('decision'), symptoms:chipValues(e.currentTarget,'symptoms'), exposure:chipValues(e.currentTarget,'exposure'), tolerance:chipValues(e.currentTarget,'tolerance'), adherence:chipValues(e.currentTarget,'adherence'), note:String(fd.get('note')||'').trim()};
+      if(templateFor(p).sessionFields)values.clinicalValues=readSchema(templateFor(p).sessionFields,fd,'clinicalValues');
       if (existing) Object.assign(existing,values);
       else p.sessions.push({id:uid('ses'), n, date:nowISO(), ...values});
       p.updatedAt=nowISO(); saveDB(); closeModal(); showToast(`Séance S${n} enregistrée`); route.tab='sessions'; renderCase();
@@ -978,33 +1240,40 @@ th, td { padding: 15px 14px; font-size: 14px; }
     function renderMetrics() {
       if (currentKey) drafts.set(currentKey,readData());
       currentKey = `${q.id}:${testSelect.value}`;
-      source = drafts.get(currentKey) || (q.id === record.qualityId ? record : {});
+      source = drafts.get(currentKey) || (q.id === record.qualityId ? record : {values:q.defaults?.(p)||{}});
       const ids = q.testTargets?.[testSelect.value] || [];
       // Historical multi-component snapshots remain editable without losing any component.
       targets = (q.components || []).filter(c => ids.includes(c.id) || (existing && q.id === record.qualityId && record.originalMeasurementId && record.components?.[c.id]));
-      fields = q.testFields?.[testSelect.value] ? (q.fields || []).filter(f => q.testFields[testSelect.value].includes(f.id)) : q.fields || [];
+      const fieldIds=q.phaseTestFields?.[p.phase||1]?.[testSelect.value] ?? q.testFields?.[testSelect.value] ?? q.phaseFields?.[p.phase||1];
+      fields=fieldIds?(q.fields||[]).filter(f=>fieldIds.includes(f.id) || (existing && hasValues({value:source.values?.[f.id]}))):q.fields||[];
       region.innerHTML = `<div class="form-grid two">${measurementFields(fields,source.values || {},'values')}</div>${targets.map(c => {
         const data = source.components?.[c.id] || {};
-        return `<fieldset class="card"><legend>${esc(c.name)}</legend><div class="form-grid two">${measurementFields(c.fields,data,c.id)}</div>${q.bilateral ? `<output data-lsi="${c.id}">LSI : ${lsi(data)}</output>` : ''}
+        return `<fieldset class="card"><legend>${esc(c.name)}</legend><div class="form-grid two">${measurementFields(c.fields,data,c.id)}</div>${q.bilateral && c.kind!=='metric' || c.bilateral ? `<output data-lsi="${c.id}">LSI : ${lsi(data,c.lsiDirection)}</output>` : ''}${q.normByMass && c.kind!=='metric'?`<output data-normalized="${c.id}">${normalizedForce(data,source.values)}</output>`:''}
         ${c.kind !== 'metric' && targets.length > 1 ? `<label class="label">Statut de la sous-composante<select name="${c.id}.status" class="select">${['D','A','B','C'].map(st => `<option ${data.status === st ? 'selected' : ''}>${st}</option>`).join('')}</select></label>` : ''}</fieldset>`;
       }).join('')}`;
+      const hiddenFields=(q.fields||[]).filter(f=>!fields.includes(f));
+      if(hiddenFields.length) {
+        const extra=document.createElement('details');extra.innerHTML=`<summary class="btn secondary">+ Autre mesure / champ</summary><div class="form-grid two">${measurementFields(hiddenFields,source.values||{},'values')}</div>`;region.appendChild(extra);fields=[...fields,...hiddenFields];
+      }
       form.elements.result.required = !fields.length && !targets.length;
+      if(q.phaseFields){const ratio=document.createElement('output');ratio.dataset.romRatio='';region.appendChild(ratio);}
       if (!existing && !form.elements.question.value) form.elements.question.value = q.question || '';
       updateDerived();
     }
     function readData() {
       const fd = new FormData(form);
-      const read = (schema,prefix) => Object.fromEntries(schema.map(f => [f.id,String(fd.get(`${prefix}.${f.id}`) || '').trim()]));
+      const read = (schema,prefix) => readSchema(schema,fd,prefix);
       return {values:{...(source.values || {}),...read(fields,'values')},components:Object.fromEntries(targets.map(c => [c.id,{...(source.components?.[c.id] || {}),...read(c.fields,c.id),...(c.kind !== 'metric' ? {status:targets.length > 1 ? fd.get(`${c.id}.status`) : fd.get('chosenStatus')} : {})}]))};
     }
     function updateDerived() {
       const data = readData();
-      targets.forEach(c => {const output = region.querySelector(`[data-lsi="${c.id}"]`);if (output) output.textContent = `LSI : ${lsi(data.components[c.id])}`;});
+      targets.forEach(c => {const output = region.querySelector(`[data-lsi="${c.id}"]`);if (output) output.textContent = `LSI : ${lsi(data.components[c.id],c.lsiDirection)}`;const normalized=region.querySelector(`[data-normalized="${c.id}"]`);if(normalized)normalized.textContent=normalizedForce(data.components[c.id],data.values);});
       // Only explicitly configured, referenced rules can offer a proposal. No default numeric cutoffs.
       const multiComponent = q.aggregate && targets.length > 1;
       form.elements.chosenStatus.disabled = !!multiComponent;
       document.getElementById('chosenStatusLabel').textContent = multiComponent ? 'Statut global calculé (override possible dans Qualités)' : 'Décision clinique A/B/C/D';
       if (multiComponent) form.elements.chosenStatus.value = aggregateStatus(Object.values(data.components).map(part => part.status));
+      const ratioOutput=region.querySelector('[data-rom-ratio]');if(ratioOutput)ratioOutput.textContent=romRatioText(data.values);
       const rule = q.interpretation;
       proposed = rule?.reference && typeof rule.propose === 'function' ? rule.propose(data) : null;
       if (!['A','B','C','D'].includes(proposed)) proposed = null;

@@ -19,7 +19,7 @@ const KEY = 'cockpit_clinique_v1_data';
     assert.equal((await db()).cases.length,0);
     const createCase = async title => {
       await page.locator('#newCaseBtn').click();
-      assert.equal(await page.locator('[name=templateId] option').count(),2);
+      assert.equal(await page.locator('[name=templateId] option').count(),3);
       await page.locator('[name=title]').fill(title);
       await page.locator('[name=side]').selectOption('Droit');
       await page.locator('[name=subtype]').selectOption('Syndesmose');
@@ -61,7 +61,7 @@ const KEY = 'cockpit_clinique_v1_data';
     // Old data: active and archived patients, full histories and unknown fields.
     const legacy = {version:1,patients:[{id:'old',name:'Ancien',lesion:'Médiale',context:'Diagnostic',objective:'Objectif',targetFunction:'Marche',constraints:'Notes',archived:false,createdAt:'2025-01-01',updatedAt:'2025-01-02',status:{mobility:'A'},statusHistory:[{id:'h',qualityId:'mobility',from:'D',to:'A',date:'2025-01-02'}],sessions:first.sessions,pivots:first.pivots,custom:'préserver'}, {id:'old-archive',name:'Archive',archived:true,status:{},sessions:[],pivots:[],statusHistory:[]}]};
     await page.evaluate(([key,value])=>localStorage.setItem(key,JSON.stringify(value)),[KEY,legacy]); await page.reload();
-    saved = await db(); assert.equal(saved.version,3); assert.equal(saved.cases.length,2);
+    saved = await db(); assert.equal(saved.version,4); assert.equal(saved.cases.length,2);
     assert.equal(saved.cases[0].subtype,'Médiale'); assert.equal(saved.cases[0].qualityStatus.mobility,'A');
     for(const field of ['context','objective','targetFunction','constraints','sessions','pivots','statusHistory','custom']) assert.deepEqual(saved.cases[0][field],legacy.patients[0][field]);
     assert.deepEqual(saved.legacySnapshot,legacy); assert.equal(saved.cases[1].status,'archived');
